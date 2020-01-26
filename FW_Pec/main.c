@@ -14,7 +14,7 @@
 #include "adc.h"
 #include "XPT2046.h"
 #include "LCD_Ili9341.h"
-#include "MAX6675.h"
+#include "MAX31855.h"
 #include "nrf24.h"
 #include "Graphics.h"
 #include "DS18B20management.h"
@@ -37,7 +37,7 @@ void DecodeCommand(uint8_t *pu8_cmd)
 {
   uint8_t   ID = pu8_cmd[0]>>3;
   uint16_t  raw = (pu8_cmd[1]<<8) | pu8_cmd[2];
-  float sensor_val;
+  float sensor_val=0;
   
   switch (pu8_cmd[0] & 0x07)
   {
@@ -46,20 +46,41 @@ void DecodeCommand(uint8_t *pu8_cmd)
     if (raw & 0x0800) sensor_val = (double)((int)(raw | 0xf000));
     else sensor_val = raw;
     sensor_val/=16.0;
-    printf(" DS18B20: ID=%d T=%.2fC", ID, sensor_val);
+    printf_P(PSTR(" DS18B20: ID=%d T=%.2fC"), ID, sensor_val);
     break;
     
     case STYPE_Tsht21:
     if (raw == 0xFFFF) sensor_val = -99.9;
-    sensor_val = 
-    printf(" SHT21:   ID=%d T=%.2fC", ID, sensor_val);
+    sensor_val = -46.85 + 175.72 / 65536.0 * (float)raw;
+    printf_P(PSTR(" SHT21:   ID=%d T=%.2fC"), ID, sensor_val);
+    break;
+    
+    case STYPE_Hsht21:
+    if (raw == 0xFFFF) sensor_val = -99.9;
+    sensor_val = -6.0 + 125.0 / 65536.0 * (float)raw;
+    printf_P(PSTR(" SHT21:   ID=%d H=%.2f%%RH"), ID, sensor_val);
+    break;
+    
+    case STYPE_Tbmp280:
+    if (raw == 0xFFFF) sensor_val = -99.9;
+    sensor_val = raw;
+    printf_P(PSTR(" BMP280:  ID=%d T=%.2fC"), ID, sensor_val);
+    break;
+    
+    case STYPE_Pbmp280:
+    if (raw == 0xFFFF) sensor_val = -99.9;
+    sensor_val = raw;
+    printf_P(PSTR(" BMP280:  ID=%d P=%.2fmBar"), ID, sensor_val);
     break;
     
     default:
-    printf(" ID=%d ***%c_%02X.%02X-%d", ID, pu8_cmd[1], pu8_cmd[2], pu8_cmd[3]);
+    printf_P(PSTR(" ID=%d ***%X_%02X.%02X-%02X"), ID, pu8_cmd[0] & 0x07, pu8_cmd[1], pu8_cmd[2], pu8_cmd[3]);
     break;
   }
-
+  
+  //Forward to ESP:  
+  fprintf_P(&UART0_str,PSTR("ID=%d, Type=%d, val=%e, Vdd=%f, rtr=%d"),ID, pu8_cmd[0] & 0x07, sensor_val, pu8_cmd[3]/10.0, pu8_cmd[4]);
+  fprintf_P(stdout,    PSTR("ID=%d, Type=%d, val=%e, Vdd=%f, rtr=%d"),ID, pu8_cmd[0] & 0x07, sensor_val, pu8_cmd[3]/10.0, pu8_cmd[4]);
 }
 
 void debug_mode()
@@ -158,7 +179,7 @@ void menu()
     }
   }       
   //Prep display (and reset graph)
-  MAX6675_ReadTemperature(&Ktemp,NULL);
+  MAX31855_ReadTemperature(2, &Ktemp,NULL);
   DisplayTemp(Ktemp,1);
   for (i=0; i< gu8_nSensors; i++) {gd_oldT[i] = -1;}
 }
@@ -177,11 +198,11 @@ int main(void)
   UART0_Init();
   ADC_Init();
   LCD_Init();
-  MAX6675_Init();
+  MAX31855_Init();
   sei();
   
   nrf24_init();                   // init hardware pins
-  nrf24_config(2,4);              // Channel #2 , payload length: 4
+  nrf24_config(2,5);              // Channel #2 , payload length: 5
   nrf24_tx_address(tx_address);   // Set the device addresses
   nrf24_rx_address(rx_address);
 
@@ -215,7 +236,7 @@ int main(void)
    
       DisplayHotTankTemperatures();
       
-      MAX6675_ReadTemperature(&Ktemp,NULL);
+      MAX31855_ReadTemperature(2, &Ktemp,NULL);
       DisplayTemp(Ktemp,0);
     }
   }

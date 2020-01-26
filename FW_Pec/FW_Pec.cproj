@@ -185,7 +185,7 @@
     <Compile Include="main.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="MAX6675.c">
+    <Compile Include="MAX31855.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="NRF24L01_lib\radioPinFunctions.c">
