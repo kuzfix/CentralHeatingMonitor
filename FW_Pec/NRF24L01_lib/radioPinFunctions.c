@@ -10,7 +10,7 @@
 */
 
 #include <avr/io.h>
-
+//#include "../config.h"
 #define USE_HARDWARE_SPI
 
 //IO pin register and bit mapping
@@ -24,17 +24,17 @@
 #define NRF24_DDR_SCK	  DDRB
 #define NRF24_PORT_SCK	PORTB
 #define NRF24_BIT_SCK	  5
-#define NRF24_DDR_CS	  DDRB
-#define NRF24_PORT_CS	  PORTB
-#define NRF24_BIT_CS	  0
-#define NRF24_DDR_CE	  DDRD
-#define NRF24_PORT_CE	  PORTD
-#define NRF24_BIT_CE	  7
+#define NRF24_DDR_CS	  DDRE
+#define NRF24_PORT_CS	  PORTE
+#define NRF24_BIT_CS	  1
+#define NRF24_DDR_CE	  DDRE
+#define NRF24_PORT_CE	  PORTE
+#define NRF24_BIT_CE	  2
 
 //IRQ pin (currently not used)
 #define NRF24_DDR_IRQ	  DDRD
 #define NRF24_PORT_IRQ	PORTD
-#define NRF24_BIT_IRQ	  2
+#define NRF24_BIT_IRQ	  4
 
 //SPI register and bit remapping (some have SPCR, others SPCR0, etc.)
 #define NRF24_SPCR	SPCR0
@@ -52,6 +52,8 @@
 
 #define NRF24_SPDR	SPDR0
 
+#define NRF24_SPCR_value ((0<<NRF24_SPIE) | (1<<NRF24_SPE) | (0<<NRF24_DORD) | (1<<NRF24_MSTR) | (0<< NRF24_CPOL) | (0<<NRF24_CPHA) | (1<<NRF24_SPR0))
+#define NRF24_SPSR_value (1<<NRF24_SPI2X)
 
 #define set_bit(reg,bit) reg |= (1<<bit)
 #define clr_bit(reg,bit) reg &= ~(1<<bit)
@@ -65,10 +67,12 @@ void nrf24_setupPins()
   set_bit(NRF24_DDR_SCK,NRF24_BIT_SCK); // SCK output
   set_bit(NRF24_DDR_MOSI,NRF24_BIT_MOSI); // MOSI output
   clr_bit(NRF24_DDR_MISO,NRF24_BIT_MISO); // MISO input
-
+  
 #ifdef USE_HARDWARE_SPI
-	NRF24_SPCR = (0<<NRF24_SPIE) | (1<<NRF24_SPE) | (0<<NRF24_DORD) | (1<<NRF24_MSTR) | (0<< NRF24_CPOL) | (0<<NRF24_CPHA) | (0<<NRF24_SPR0);
-	NRF24_SPSR = (1<<NRF24_SPI2X);
+  #ifndef SHARE_SPI
+	NRF24_SPCR = NRF24_SPCR_value;
+	NRF24_SPSR = NRF24_SPSR_value;
+  #endif
 #endif
 }
 /* ------------------------------------------------------------------------- */
@@ -134,10 +138,24 @@ uint8_t spi_transfer(uint8_t tx)
 #ifdef USE_HARDWARE_SPI
   uint8_t rx = 0;
 
+  #ifdef SHARE_SPI
+  uint8_t backupSPCR = NRF24_SPCR;
+  uint8_t backupSPSR = NRF24_SPSR;
+  NRF24_SPCR = NRF24_SPCR_value;
+  NRF24_SPSR = NRF24_SPSR_value;
+  #endif //SHARE_SPI
+
   NRF24_SPDR = tx;
   while ( !(NRF24_SPSR & (1<<NRF24_SPIF)) ) {} //wait until done
   rx = NRF24_SPDR;
+
+  #ifdef SHARE_SPI
+  NRF24_SPCR = backupSPCR;
+  NRF24_SPSR = backupSPSR;
+  #endif	//SHARE_SPI
+
   return rx;
+
 #else
   return spi_transfer_SW(tx);
 #endif

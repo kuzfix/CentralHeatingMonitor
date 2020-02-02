@@ -8,10 +8,11 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-#define F_CPU 16000000UL
+#define F_CPU 18432000UL
 #define BAUD1 9600UL
 #define BAUD0 9600UL
 
+#define SHARE_SPI
 #define MAXSENSORS 18
 #define OW_ONE_BUS
 //DS18B20 pin set in onwire.h - PB1

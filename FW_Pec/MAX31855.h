@@ -20,8 +20,8 @@
 
 //Tspi_clk >= 200ns => <5MHz
 //F_CPU=18.432MHz/4 = 4.608MHz
-#define 	MAX31855_SPCR_value ((0<<SPIE) | (1<<SPE) | (0<<DORD) | (1<<MSTR) | (0<< CPOL) | (0<<CPHA) | (0<<SPR0))
-#define 	MAX31855_SPSR_value (0<<SPI2X)
+#define MAX31855_SPCR_value ((0<<SPIE) | (1<<SPE) | (0<<DORD) | (1<<MSTR) | (0<< CPOL) | (0<<CPHA) | (1<<SPR0))
+#define MAX31855_SPSR_value (0<<SPI2X)
 
 #define MAX31855_DDR_MISO	DDRB
 #define MAX31855_PORT_MISO	PORTB
@@ -54,5 +54,4 @@
 void MAX31855_Init();
 int MAX31855_ReadTemperature(int SensorN, double *temp, uint8_t *status_flags);
  
-
 #endif  // _MAX31855_h_

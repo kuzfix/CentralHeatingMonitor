@@ -19,6 +19,7 @@
 #include <util/delay.h>
 
 #define LCD_USE_PRINTF
+#define SHARE_SPI
 
 //#define ILI9341_SPCR	SPCR
 //#define ILI9341_SPSR	SPSR
@@ -27,6 +28,9 @@
 #define ILI9341_SPCR	SPCR0
 #define ILI9341_SPSR	SPSR0
 #define ILI9341_SPDR	SPDR0
+
+#define ILI9341_SPCR_value  ((0<<SPIE) | (1<<SPE) | (0<<DORD) | (1<<MSTR) | (0<< CPOL) | (0<<CPHA) | (0<<SPR0))
+#define ILI9341_SPSR_value  (1<<SPI2X)
 
 #define ILI9341_DDR_BACKLIGHT		DDRD
 #define ILI9341_PORT_BACKLIGHT		PORTD

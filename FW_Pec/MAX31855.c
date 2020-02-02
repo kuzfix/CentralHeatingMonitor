@@ -5,6 +5,8 @@
  *  Author: maticpi
  */ 
 #include "MAX31855.h"
+#include "LCD_Ili9341.h"
+#include <stdio.h>
 
 void MAX31855_Init(uint16_t width, uint16_t height)
 {
@@ -12,12 +14,13 @@ void MAX31855_Init(uint16_t width, uint16_t height)
   MAX31855_DDR_MISO &= ~(1<<MAX31855_BIT_MISO);	//MISO set as input
   MAX31855_PORT_MISO &= ~(1<<MAX31855_BIT_MISO);	//pull-up on MISO off
   MAX31855_DDR_SCK |= (1<<MAX31855_BIT_SCK);	//SCK set as output
-  MAX31855_DDR_CS1 |= (1<<MAX31855_BIT_CS1);	//CS set as output
-  MAX31855_DDR_CS2 |= (1<<MAX31855_BIT_CS2);	//CS set as output
-  MAX31855_DDR_CS3 |= (1<<MAX31855_BIT_CS3);	//CS set as output
   MAX31855_CS1_DESELECT();
   MAX31855_CS2_DESELECT();
   MAX31855_CS3_DESELECT();
+  MAX31855_DDR_CS1 |= (1<<MAX31855_BIT_CS1);	//CS set as output
+  MAX31855_DDR_CS2 |= (1<<MAX31855_BIT_CS2);	//CS set as output
+  MAX31855_DDR_CS3 |= (1<<MAX31855_BIT_CS3);	//CS set as output
+
   
   #ifndef SHARE_SPI
   MAX31855_SPCR = MAX31855_SPCR_value;
@@ -82,10 +85,11 @@ int MAX31855_ReadTemperature(int SensorN, double *temp, uint8_t *status_flags)
     while(!(MAX31855_SPSR & (1<<SPIF)));
     out.B3 = MAX31855_SPDR;
   }
-  
-  if      (SensorN == 1)  MAX31855_CS1_DESELECT();
-  else if (SensorN == 2)  MAX31855_CS2_DESELECT();
-  else                    MAX31855_CS3_DESELECT();
+  char txt[50];
+  sprintf(txt,"RAW=0x%02X %02X %02X %02X",out.B3,out.B2,out.B1,out.B0);
+  if      (SensorN == 1)  {MAX31855_CS1_DESELECT(); UG_PutString(120,80,txt);}
+  else if (SensorN == 2)  {MAX31855_CS2_DESELECT(); UG_PutString(120,130,txt);}
+  else                    {MAX31855_CS3_DESELECT(); UG_PutString(120,180,txt);}
   
   #ifdef SHARE_SPI
   MAX31855_SPCR = backupSPCR;

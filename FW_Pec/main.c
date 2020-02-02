@@ -18,6 +18,7 @@
 #include "nrf24.h"
 #include "Graphics.h"
 #include "DS18B20management.h"
+#include "LED.h"
 
 /* PROTOCOL
 ID valH valL Vdd rtr
@@ -38,7 +39,9 @@ void DecodeCommand(uint8_t *pu8_cmd)
   uint8_t   ID = pu8_cmd[0]>>3;
   uint16_t  raw = (pu8_cmd[1]<<8) | pu8_cmd[2];
   float sensor_val=0;
+  char txt[50];
   
+  sprintf_P(txt,PSTR("Vdd=%.1fV N_retries=%d"),pu8_cmd[3]/10.0,pu8_cmd[4]);  
   switch (pu8_cmd[0] & 0x07)
   {
     case STYPE_Tds18b20:
@@ -46,41 +49,41 @@ void DecodeCommand(uint8_t *pu8_cmd)
     if (raw & 0x0800) sensor_val = (double)((int)(raw | 0xf000));
     else sensor_val = raw;
     sensor_val/=16.0;
-    printf_P(PSTR(" DS18B20: ID=%d T=%.2fC"), ID, sensor_val);
+    printf_P(PSTR(" DS18B20: ID=%d T=%.2fC %s\r\n"), ID, sensor_val, txt);
     break;
     
     case STYPE_Tsht21:
     if (raw == 0xFFFF) sensor_val = -99.9;
     sensor_val = -46.85 + 175.72 / 65536.0 * (float)raw;
-    printf_P(PSTR(" SHT21:   ID=%d T=%.2fC"), ID, sensor_val);
+    printf_P(PSTR(" SHT21:   ID=%d T=%.2fC %s\r\n"), ID, sensor_val, txt);
     break;
     
     case STYPE_Hsht21:
     if (raw == 0xFFFF) sensor_val = -99.9;
     sensor_val = -6.0 + 125.0 / 65536.0 * (float)raw;
-    printf_P(PSTR(" SHT21:   ID=%d H=%.2f%%RH"), ID, sensor_val);
+    printf_P(PSTR(" SHT21:   ID=%d H=%.2f%%RH %s\r\n"), ID, sensor_val, txt);
     break;
     
     case STYPE_Tbmp280:
     if (raw == 0xFFFF) sensor_val = -99.9;
     sensor_val = raw;
-    printf_P(PSTR(" BMP280:  ID=%d T=%.2fC"), ID, sensor_val);
+    printf_P(PSTR(" BMP280:  ID=%d T=%.2fC %s\r\n"), ID, sensor_val, txt);
     break;
     
     case STYPE_Pbmp280:
     if (raw == 0xFFFF) sensor_val = -99.9;
     sensor_val = raw;
-    printf_P(PSTR(" BMP280:  ID=%d P=%.2fmBar"), ID, sensor_val);
+    printf_P(PSTR(" BMP280:  ID=%d P=%.2fmBar %s\r\n"), ID, sensor_val, txt);
     break;
     
     default:
-    printf_P(PSTR(" ID=%d ***%X_%02X.%02X-%02X"), ID, pu8_cmd[0] & 0x07, pu8_cmd[1], pu8_cmd[2], pu8_cmd[3]);
+    printf_P(PSTR("Data:=0x%02X %02X %02X %02X %02X"),pu8_cmd[0], pu8_cmd[1], pu8_cmd[2], pu8_cmd[3], pu8_cmd[4]);
     break;
   }
   
   //Forward to ESP:  
   fprintf_P(&UART0_str,PSTR("ID=%d, Type=%d, val=%e, Vdd=%f, rtr=%d"),ID, pu8_cmd[0] & 0x07, sensor_val, pu8_cmd[3]/10.0, pu8_cmd[4]);
-  fprintf_P(stdout,    PSTR("ID=%d, Type=%d, val=%e, Vdd=%f, rtr=%d"),ID, pu8_cmd[0] & 0x07, sensor_val, pu8_cmd[3]/10.0, pu8_cmd[4]);
+  //fprintf_P(stdout,    PSTR("ID=%d, Type=%d, val=%e, Vdd=%f, rtr=%d"),ID, pu8_cmd[0] & 0x07, sensor_val, pu8_cmd[3]/10.0, pu8_cmd[4]);
 }
 
 void debug_mode()
@@ -93,22 +96,24 @@ void debug_mode()
   UG_FillFrame(0,0,320,12,C_WHITE);
   UG_FillFrame(0,12,320,240,C_BLACK);
 	UG_SetForecolor(C_BLACK);
+  UG_SetBackcolor(C_WHITE);
 	UG_FontSelect( &RFONT_8X12 );
-  sprintf_P(txt,PSTR("Debug mode. Press ESC to exit.")); UG_PutString(2,2,txt);
+  sprintf_P(txt,PSTR("Debug mode. Press ESC to exit.")); UG_PutString(10,1,txt);
 	UG_SetForecolor(C_WHITE);
 	UG_ConsoleSetBackcolor( ILI9341_BLACK );
 	UG_ConsoleSetForecolor( ILI9341_WHITE );
 	UG_ConsoleSetArea(1,13,318,238);
 
+  uint32_t t1;
   while (1)
   {
-    if (HasOneMillisecondPassed()) 
+    if (Has_X_MillisecondsPassed(100,&t1)) 
     {
       KBD_Read();
       cmd = KBD_GetKey();
       switch (cmd)
       {
-        case BTN_ESC: finish=1; break;
+        case BTN3: finish=1; break;
       }
 
       if(nrf24_dataReady())
@@ -135,12 +140,11 @@ void menu()
   
   UG_FillFrame(0,0,320,240,C_BLACK);
   sprintf_P(txt,PSTR("Menu: ")); UG_PutString(10,60,txt);
-  sprintf_P(txt,PSTR("OK  - Debug mode")); UG_PutString(30,80,txt);
-  sprintf_P(txt,PSTR("ESC - Clear sensor order EEPROM.")); UG_PutString(30,100,txt);
-  sprintf_P(txt,PSTR("A   - Search for sensors.")); UG_PutString(30,120,txt);
-  sprintf_P(txt,PSTR("B   - Set sensor order.")); UG_PutString(30,140,txt);
+  sprintf_P(txt,PSTR("TOUCH - Debug mode")); UG_PutString(30,80,txt);
+  sprintf_P(txt,PSTR("T1    - Search for sensors.")); UG_PutString(30,120,txt);
+  sprintf_P(txt,PSTR("T2    - Set sensor order.")); UG_PutString(30,140,txt);
   sprintf_P(txt,PSTR("exiting in")); UG_PutString(90,160,txt);
-  
+
   t1=GetSysTick();
   t2=t1;
   while (1)
@@ -154,15 +158,16 @@ void menu()
     key=KBD_GetKey();
     switch (key)
     {
-      case BTN_OK:
+      case BTN3:
         debug_mode();
         t1=GetSysTick();
         break;
-      case BTN_ESC:
+/*      case BTN1:
         EraseSensorOrderEEPROM();
         t1=GetSysTick()-MENU_DISPLAY_TIME;
         break;
-      case BTN_A:
+*/
+      case BTN1:
         printf_P(PSTR("\nSearching sens...\n"));
         gu8_nSensors = search_sensors();
         if (gu8_nSensors > MAXSENSORS) gu8_nSensors=MAXSENSORS;
@@ -170,7 +175,7 @@ void menu()
         _delay_ms(2000);
         t1=GetSysTick()-MENU_DISPLAY_TIME;
         break;
-      case BTN_B:
+      case BTN2:
         ChangSensorOrder();
         t1=GetSysTick()-MENU_DISPLAY_TIME;
         break;
@@ -190,15 +195,18 @@ int main(void)
   uint8_t rx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
 
   uint32_t t1;
-  double Ktemp;
+  double Ktemp=0;
   int result;
   
+  LED_Init();
   KBD_Init();
   Systime_Init();
   UART0_Init();
   ADC_Init();
   LCD_Init();
+  ILI9341_setRotation(1);
   MAX31855_Init();
+  XPT2046_Init(320,240);
   sei();
   
   nrf24_init();                   // init hardware pins
@@ -236,7 +244,13 @@ int main(void)
    
       DisplayHotTankTemperatures();
       
+/*      char txt[50];
+      MAX31855_ReadTemperature(1, &Ktemp,NULL);
+      sprintf(txt,"T1=%f",Ktemp); UG_PutString(150,100,txt);
+      MAX31855_ReadTemperature(3, &Ktemp,NULL);
+      sprintf(txt,"T3=%f",Ktemp); UG_PutString(150,200,txt);
       MAX31855_ReadTemperature(2, &Ktemp,NULL);
+      sprintf(txt,"T2=%f",Ktemp); UG_PutString(150,150,txt);*/
       DisplayTemp(Ktemp,0);
     }
   }

@@ -29,17 +29,32 @@ void ILI9341_InitSPI()
 	ILI9341_DDR_DC |= (1<<ILI9341_BIT_DC);	//DC set as output
 	ILI9341_DDR_RST |= (1<<ILI9341_BIT_RST);	//RST set as output
 	
-	ILI9341_SPCR = (0<<SPIE) | (1<<SPE) | (0<<DORD) | (1<<MSTR) | (0<< CPOL) | (0<<CPHA) | (0<<SPR0);
-	ILI9341_SPSR = (1<<SPI2X);
+#ifndef SHARE_SPI
+	ILI9341_SPCR = ILI9341_SPCR_value;
+	ILI9341_SPSR = ILI9341_SPSR_value;
+#endif
 }
 
 uint8_t ILI9341_SPIwrite(uint8_t c) 
 {
 	uint8_t result=0;
 
+  #ifdef SHARE_SPI
+  uint8_t backupSPCR = ILI9341_SPCR;
+  uint8_t backupSPSR = ILI9341_SPSR;
+  ILI9341_SPCR = ILI9341_SPCR_value;
+  ILI9341_SPSR = ILI9341_SPSR_value;
+  #endif //SHARE_SPI
+
 	ILI9341_SPDR = c;
     while(!(ILI9341_SPSR & (1<<SPIF)));
 	result = ILI9341_SPDR;
+  
+  #ifdef SHARE_SPI
+  ILI9341_SPCR = backupSPCR;
+  ILI9341_SPSR = backupSPSR;
+  #endif	//SHARE_SPI
+
 	return result;
 }
 
