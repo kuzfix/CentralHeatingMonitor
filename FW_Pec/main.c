@@ -28,62 +28,90 @@ valL - raw value LOW byte.
 Vdd - power supply voltage
 rtr - number of retransmissions of the previous packet (indicates ink quality, lower is better)
 */
+#define THIS_STATION_ID  0xFE
 #define STYPE_Tds18b20		0x01
 #define STYPE_Tsht21			0x02
 #define STYPE_Hsht21			0x03
-#define STYPE_Tbmp280			0x05
-#define STYPE_Pbmp280			0x06
+#define STYPE_Tbmp280			0x04
+#define STYPE_Pbmp280			0x05
+#define STYPE_TankLevel		0x06
+//Expanded types (that NRF link doesnt know, but WiFi link does)
+#define STYPE_ChimneyTemperature  0x11
+#define STYPE_FireBoxTemperature  0x12
+#define STYPE_HeatStorageLevels   0x13
+
+void ReportDataToWiFiModule(uint8_t ID, uint8_t Type, double Value, double Vdd, uint16_t retries)
+{
+  int i;
+  if (Type == STYPE_HeatStorageLevels)
+  {
+    for (i=0; i<gu8_nSensors; i++)
+    {
+      if (gd_oldT[i]!=gd_Temp[i])
+      {
+        fprintf_P(&UART0_str,PSTR("Type=%d, ID=%d, SensNum=%d, val=%e\n"),Type, ID, i, gd_Temp[i]);
+      }
+    }
+  }
+  else if ( (Type == STYPE_ChimneyTemperature) || (Type == STYPE_FireBoxTemperature) )
+  {
+    fprintf_P(&UART0_str,PSTR("Type=%d, ID=%d, val=%e\n"), Type, ID, Value);
+  }
+  else
+  {
+    fprintf_P(&UART0_str,PSTR("Type=%d, ID=%d, val=%e, Vdd=%f, rtr=%d\n"), Type, ID, Value, Vdd, retries);
+  }
+}
 
 void DecodeCommand(uint8_t *pu8_cmd)
 {
   uint8_t   ID = pu8_cmd[0]>>3;
+  uint8_t   type = pu8_cmd[0] & 0x07;
   uint16_t  raw = (pu8_cmd[1]<<8) | pu8_cmd[2];
-  float sensor_val=0;
-  char txt[50];
+  double sensor_val=0;
+  double Vdd = pu8_cmd[3]/10.0;
+//  char txt[50];
   
-  sprintf_P(txt,PSTR("Vdd=%.1fV N_retries=%d"),pu8_cmd[3]/10.0,pu8_cmd[4]);  
-  switch (pu8_cmd[0] & 0x07)
+//  sprintf_P(txt,PSTR("Vdd=%.1fV N_retries=%d"),pu8_cmd[3]/10.0,pu8_cmd[4]);  
+  switch (type)
   {
     case STYPE_Tds18b20:
     if (raw == 0xFFFF) sensor_val = -99.9;
     if (raw & 0x0800) sensor_val = (double)((int)(raw | 0xf000));
     else sensor_val = raw;
     sensor_val/=16.0;
-    printf_P(PSTR(" DS18B20: ID=%d T=%.2fC %s\r\n"), ID, sensor_val, txt);
+//    printf_P(PSTR(" DS18B20: ID=%d T=%.2fC %s\r\n"), ID, sensor_val, txt);
     break;
     
     case STYPE_Tsht21:
     if (raw == 0xFFFF) sensor_val = -99.9;
     sensor_val = -46.85 + 175.72 / 65536.0 * (float)raw;
-    printf_P(PSTR(" SHT21:   ID=%d T=%.2fC %s\r\n"), ID, sensor_val, txt);
+//    printf_P(PSTR(" SHT21:   ID=%d T=%.2fC %s\r\n"), ID, sensor_val, txt);
     break;
     
     case STYPE_Hsht21:
     if (raw == 0xFFFF) sensor_val = -99.9;
     sensor_val = -6.0 + 125.0 / 65536.0 * (float)raw;
-    printf_P(PSTR(" SHT21:   ID=%d H=%.2f%%RH %s\r\n"), ID, sensor_val, txt);
+//    printf_P(PSTR(" SHT21:   ID=%d H=%.2f%%RH %s\r\n"), ID, sensor_val, txt);
     break;
     
     case STYPE_Tbmp280:
     if (raw == 0xFFFF) sensor_val = -99.9;
     sensor_val = raw;
-    printf_P(PSTR(" BMP280:  ID=%d T=%.2fC %s\r\n"), ID, sensor_val, txt);
+//    printf_P(PSTR(" BMP280:  ID=%d T=%.2fC %s\r\n"), ID, sensor_val, txt);
     break;
     
     case STYPE_Pbmp280:
     if (raw == 0xFFFF) sensor_val = -99.9;
     sensor_val = raw;
-    printf_P(PSTR(" BMP280:  ID=%d P=%.2fmBar %s\r\n"), ID, sensor_val, txt);
+//    printf_P(PSTR(" BMP280:  ID=%d P=%.2fmBar %s\r\n"), ID, sensor_val, txt);
     break;
     
     default:
-    printf_P(PSTR("Data:=0x%02X %02X %02X %02X %02X"),pu8_cmd[0], pu8_cmd[1], pu8_cmd[2], pu8_cmd[3], pu8_cmd[4]);
+//    printf_P(PSTR("Data:=0x%02X %02X %02X %02X %02X"),pu8_cmd[0], pu8_cmd[1], pu8_cmd[2], pu8_cmd[3], pu8_cmd[4]);
     break;
   }
-  
-  //Forward to ESP:  
-  fprintf_P(&UART0_str,PSTR("ID=%d, Type=%d, val=%e, Vdd=%f, rtr=%d"),ID, pu8_cmd[0] & 0x07, sensor_val, pu8_cmd[3]/10.0, pu8_cmd[4]);
-  //fprintf_P(stdout,    PSTR("ID=%d, Type=%d, val=%e, Vdd=%f, rtr=%d"),ID, pu8_cmd[0] & 0x07, sensor_val, pu8_cmd[3]/10.0, pu8_cmd[4]);
+  ReportDataToWiFiModule(ID, type, sensor_val, Vdd, pu8_cmd[4]);
 }
 
 void debug_mode()
@@ -133,7 +161,7 @@ void menu()
 {
   #define MENU_DISPLAY_TIME 5000
   int i;
-  double Ktemp;
+  double Tchim,Tfire;
   uint32_t t1,t2;
   char key;
   char txt[50];
@@ -184,8 +212,9 @@ void menu()
     }
   }       
   //Prep display (and reset graph)
-  MAX31855_ReadTemperature(2, &Ktemp,NULL);
-  DisplayTemp(Ktemp,1);
+  MAX31855_ReadTemperature(2, &Tchim,NULL);
+  MAX31855_ReadTemperature(1, &Tfire,NULL);
+  DisplayTemp(Tchim, Tfire, 1);
   for (i=0; i< gu8_nSensors; i++) {gd_oldT[i] = -1;}
 }
 
@@ -193,15 +222,16 @@ int main(void)
 {
   uint8_t tx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
   uint8_t rx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
+  uint8_t   pu8_data[33];
 
   uint32_t t1;
-  double Ktemp=0;
+  double ChimneyTemperature=0, FireBoxTemperature=0;
   int result;
-  
+
   LED_Init();
   KBD_Init();
   Systime_Init();
-  UART0_Init();
+  UART0_Init(); UCSR0B &=~ (1<<RXEN0);  //Disable RX
   ADC_Init();
   LCD_Init();
   ILI9341_setRotation(1);
@@ -235,24 +265,31 @@ int main(void)
 
   while (1) 
   {
-    if (HasOneMillisecondPassed()) {KBD_Read();}
+    if (HasOneMillisecondPassed()) 
+    {
+      KBD_Read();
+      if(nrf24_dataReady())
+      {
+        memset(pu8_data,0x00,33);
+        nrf24_getData(pu8_data);
+        DecodeCommand(pu8_data);
+      }
+    }
     if (KBD_GetKey()) menu();
     
     if (Has_X_MillisecondsPassed(200,&t1))
     {
       Read_DS18x20_Temperature_OneByOne();   //Read temperatures of hot water storage tank
-   
+      ReportDataToWiFiModule(THIS_STATION_ID, STYPE_HeatStorageLevels, 0, 0, 0);
       DisplayHotTankTemperatures();
-      
-/*      char txt[50];
-      MAX31855_ReadTemperature(1, &Ktemp,NULL);
-      sprintf(txt,"T1=%f",Ktemp); UG_PutString(150,100,txt);
-      MAX31855_ReadTemperature(3, &Ktemp,NULL);
-      sprintf(txt,"T3=%f",Ktemp); UG_PutString(150,200,txt);
-      MAX31855_ReadTemperature(2, &Ktemp,NULL);
-      sprintf(txt,"T2=%f",Ktemp); UG_PutString(150,150,txt);*/
-      DisplayTemp(Ktemp,0);
+
+      MAX31855_ReadTemperature(1, &FireBoxTemperature,NULL);
+      ReportDataToWiFiModule(THIS_STATION_ID, STYPE_FireBoxTemperature, FireBoxTemperature, 0, 0);
+      MAX31855_ReadTemperature(2, &ChimneyTemperature,NULL);
+      ReportDataToWiFiModule(THIS_STATION_ID, STYPE_ChimneyTemperature, ChimneyTemperature, 0, 0);
+      DisplayTemp(ChimneyTemperature, FireBoxTemperature, 0);
+//      MAX31855_ReadTemperature(3, &Ktemp,NULL);
+      if (XFDCSR & (1<<XFDIF)) UG_FillFrame(GRAPH_MIN_X-10,20,GRAPH_MIN_X-5,25,C_RED);
     }
   }
 }
-

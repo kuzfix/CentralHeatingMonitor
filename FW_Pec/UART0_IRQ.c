@@ -111,6 +111,7 @@ char UART0_PreviewRxByte(int index)
 
 ISR(USART0_RX_vect)
 {
+  volatile char tmp;
 	if (RBnum0 < RB_SIZE0)
 	{
 		RxBuf0[RBin0]=UDR0;
@@ -118,7 +119,10 @@ ISR(USART0_RX_vect)
 		if (RBin0 >= RB_SIZE0) RBin0=0;
 		RBnum0++;
 	}
-	//else report error - Receive buffer overflow
+	else 
+  { //report error - Receive buffer overflow
+    tmp=UDR0; //empty RX buffer to clear IRQ flag
+  }    
 }
 
 ISR(USART0_UDRE_vect)

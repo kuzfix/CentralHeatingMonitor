@@ -20,10 +20,10 @@
 
 #ifdef OW_ONE_BUS
 /* Are set in main file*/
-#define OW_PIN  1
-#define OW_IN   PINB
-#define OW_OUT  PORTB
-#define OW_DDR  DDRB
+#define OW_PIN  5
+#define OW_IN   PIND
+#define OW_OUT  PORTD
+#define OW_DDR  DDRD
 #define OW_CONF_DELAYOFFSET 0
 
 #else 

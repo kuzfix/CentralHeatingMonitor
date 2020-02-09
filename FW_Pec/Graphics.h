@@ -32,7 +32,7 @@ void HSL2RGB(float h, float s, float l,float *R, float *G, float *B);
 void PrepDisplay();
 void DisplayHotTankTemperatures();
 void ClearLastLine(int x);
-void DisplayTemp(double T, char reset);
+void DisplayTemp(double Tchim, double Tfire, char reset);
 void PrepSensorOrderDisplay();
 void DisplaySensorNr(int n);
 void DisplaySensorOrderTemperatures(char *order, int imax);

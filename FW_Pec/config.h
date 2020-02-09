@@ -9,8 +9,9 @@
 #define CONFIG_H_
 
 #define F_CPU 18432000UL
+//#define F_CPU 16000000UL
 #define BAUD1 9600UL
-#define BAUD0 9600UL
+#define BAUD0 115200UL
 
 #define SHARE_SPI
 #define MAXSENSORS 18

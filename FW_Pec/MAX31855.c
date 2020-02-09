@@ -85,11 +85,12 @@ int MAX31855_ReadTemperature(int SensorN, double *temp, uint8_t *status_flags)
     while(!(MAX31855_SPSR & (1<<SPIF)));
     out.B3 = MAX31855_SPDR;
   }
-  char txt[50];
-  sprintf(txt,"RAW=0x%02X %02X %02X %02X",out.B3,out.B2,out.B1,out.B0);
-  if      (SensorN == 1)  {MAX31855_CS1_DESELECT(); UG_PutString(120,80,txt);}
-  else if (SensorN == 2)  {MAX31855_CS2_DESELECT(); UG_PutString(120,130,txt);}
-  else                    {MAX31855_CS3_DESELECT(); UG_PutString(120,180,txt);}
+  
+  //char txt[50];
+  //sprintf(txt,"RAW=0x%02X %02X %02X %02X",out.B3,out.B2,out.B1,out.B0);
+  if      (SensorN == 1)  {MAX31855_CS1_DESELECT(); /*UG_PutString(120,80,txt);*/}
+  else if (SensorN == 2)  {MAX31855_CS2_DESELECT(); /*UG_PutString(120,130,txt);*/}
+  else                    {MAX31855_CS3_DESELECT(); /*UG_PutString(120,180,txt);*/}
   
   #ifdef SHARE_SPI
   MAX31855_SPCR = backupSPCR;

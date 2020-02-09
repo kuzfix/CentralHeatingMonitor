@@ -1,0 +1,2 @@
+C:\Users\maticpi\AppData\Local\Arduino15\packages\esp8266\tools\python3\3.7.2-post1/python3 C:\Users\maticpi\AppData\Local\Arduino15\packages\esp8266\hardware\esp8266\2.6.3/tools/upload.py --chip esp8266 --port COM3 --baud 230400 --before default_reset --after hard_reset write_flash 0x0 d:\Projects\Jubomer\FW_JubomerV2\Release\FW_JubomerV2.bin
+@rem Baud rate 115200 is allways used during negotiation. Baud rate specified with --baud 230400 is only used for data transfer (depending on the system, higher speeds might also work: 460800 or even 921600)

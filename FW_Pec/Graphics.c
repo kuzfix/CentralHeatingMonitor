@@ -136,7 +136,7 @@ void ClearLastLine(int x)
   }
 }
 
-void DisplayTemp(double T, char reset)
+void DisplayTemp(double Tchim, double Tfire, char reset)
 {
   #define DECIMATION 300L
   char txt[50];
@@ -145,25 +145,39 @@ void DisplayTemp(double T, char reset)
   int x,y,color;
 
   if (reset) idx=-1;
-  if (T<100) color = C_WHITE;
-  else if (T<120) color = C_ORANGE;
-  else if (T<180) color = C_YELLOW;
-  else if (T<250) color = C_GREEN;
-  else if (T<300) color = C_YELLOW;
-  else if (T<360) color = C_ORANGE;
+  if (Tfire<100) color = C_WHITE;
+  else if (Tfire<120) color = C_ORANGE;
+  else if (Tfire<180) color = C_YELLOW;
+  else if (Tfire<250) color = C_GREEN;
+  else if (Tfire<300) color = C_YELLOW;
+  else if (Tfire<360) color = C_ORANGE;
   else color = C_RED;
-  
   UG_SetForecolor(C_WHITE);
   UG_SetBackcolor(C_BLACK);
-  sprintf_P(txt,PSTR("%5.1f"),T);
+  if (Tfire >= 1000.0) sprintf_P(txt,PSTR("%d"),(int)Tfire);
+  else sprintf_P(txt,PSTR("%5.1f"),Tfire);
+  UG_PutString(GRAPH_MIN_X-49,210,txt);
+  UG_DrawFrame(GRAPH_MIN_X-51,210-1,GRAPH_MIN_X-3,210+11,color);
+  
+  if (Tchim<100) color = C_WHITE;
+  else if (Tchim<120) color = C_ORANGE;
+  else if (Tchim<180) color = C_YELLOW;
+  else if (Tchim<250) color = C_GREEN;
+  else if (Tchim<300) color = C_YELLOW;
+  else if (Tchim<360) color = C_ORANGE;
+  else color = C_RED;
+  UG_SetForecolor(C_WHITE);
+  UG_SetBackcolor(C_BLACK);
+  if (Tchim >= 1000.0) sprintf_P(txt,PSTR("%d"),(int)Tchim);
+  else sprintf_P(txt,PSTR("%5.1f"),Tchim);
   UG_PutString(GRAPH_MIN_X-49,GRAPH_MAX_Y/2-8,txt);
   UG_DrawFrame(GRAPH_MIN_X-51,GRAPH_MAX_Y/2-9,GRAPH_MIN_X-3,GRAPH_MAX_Y/2+3,color);
-  
+
   if (idx == -1)
   {
     PrepDisplay();
     ox=GRAPH_MIN_X;
-    oy=GRAPH_MAX_Y - ((double)(T-MIN_T))/((double)(MAX_T-MIN_T))*GRAPH_WY;
+    oy=GRAPH_MAX_Y - ((double)(Tchim-MIN_T))/((double)(MAX_T-MIN_T))*GRAPH_WY;
   }
   else if (idx < -1 ) {} //what to do in case of overflow?
   else if (idx < GRAPH_WX*DECIMATION)
@@ -171,7 +185,7 @@ void DisplayTemp(double T, char reset)
     if ((idx % DECIMATION) == 0)
     {
       x=ox+1;
-      y=GRAPH_MAX_Y - ((double)(T-MIN_T))/((double)(MAX_T-MIN_T))*GRAPH_WY;
+      y=GRAPH_MAX_Y - ((double)(Tchim-MIN_T))/((double)(MAX_T-MIN_T))*GRAPH_WY;
       UG_DrawLine(ox,oy,x,y,color);
       ox=x;
       oy=y;
@@ -181,7 +195,7 @@ void DisplayTemp(double T, char reset)
   {
     if ((idx % DECIMATION) == 0)
     {
-      y=GRAPH_MAX_Y - ((double)(T-MIN_T))/((double)(MAX_T-MIN_T))*GRAPH_WY;
+      y=GRAPH_MAX_Y - ((double)(Tchim-MIN_T))/((double)(MAX_T-MIN_T))*GRAPH_WY;
       if (ox == (GRAPH_MIN_X+GRAPH_WX)) //if wraparround
       {
         x=GRAPH_MIN_X;

@@ -24,5 +24,6 @@ void EraseSensorOrderEEPROM();
 void SaveSensorOrderToEEPROM();
 void ChangSensorOrder();
 int ReadSensorOrderFromEEPROM();
+//void WriteDefaultSensorOrderToEEPROM();
 
 #endif /* DS18B20MANAGEMENT_H_ */
