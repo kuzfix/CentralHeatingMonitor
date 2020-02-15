@@ -1,14 +1,10 @@
 #include "config.h"
-#include "ADS1118_ADC.h"
-#include "DS18S20_1wTemp.h"
 #include "Configuration.h"
 #include "FSBrowser.h"
 #include "NTP_TimeSync.h"
 #include "WebServer.h"
 #include "ResultManagement.h"
-#include "SHT21_i2c_HumTemp.h"
 #include "OTAupdates.h"
-#include "Measure.h"
 #include "WiFiConnection.h"
 #include "Logging.h"
 
@@ -180,8 +176,8 @@ void DecodeMessage(String msg)
 			for (i = 0; i < MAX_HEAT_STR_SENSORS; i++)
 			{
 				value = Tlist.toDouble();
-				SERIAL_DBG_PORT.print(String(i)+": "+Tlist+"   val=");
-				SERIAL_DBG_PORT.println(value);
+				//SERIAL_DBG_PORT.print(String(i)+": "+Tlist+"   val=");
+				//SERIAL_DBG_PORT.println(value);
 				HeatStorage.updateT(i, value);
 				if (Tlist.indexOf(StringF(";")) < 0) break;
 				Tlist = Tlist.substring(msg.indexOf(StringF(";")) + 1);
