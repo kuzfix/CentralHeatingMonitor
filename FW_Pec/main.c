@@ -36,31 +36,24 @@ rtr - number of retransmissions of the previous packet (indicates ink quality, l
 #define STYPE_Pbmp280			0x05
 #define STYPE_TankLevel		0x06
 //Expanded types (that NRF link doesnt know, but WiFi link does)
-#define STYPE_ChimneyTemperature  0x11
-#define STYPE_FireBoxTemperature  0x12
-#define STYPE_HeatStorageLevels   0x13
+#define STYPE_FurnaceTemperatures  0x11
+#define STYPE_HeatStorageLevels   0x12
 
-void ReportDataToWiFiModule(uint8_t ID, uint8_t Type, double Value, double Vdd, uint16_t retries)
+#define HEAT_STORAGE_REPORT_INTERVAL  10000
+void ReportHeatStorageLevels()
 {
   int i;
-  if (Type == STYPE_HeatStorageLevels)
+  fprintf_P(&UART0_str,PSTR("Type=%d Tlist="),STYPE_HeatStorageLevels);
+  for (i=0; i<gu8_nSensors; i++)
   {
-    for (i=0; i<gu8_nSensors; i++)
-    {
-      if (gd_oldT[i]!=gd_Temp[i])
-      {
-        fprintf_P(&UART0_str,PSTR("Type=%d, ID=%d, SensNum=%d, val=%e\n"),Type, ID, i, gd_Temp[i]);
-      }
-    }
+    fprintf_P(&UART0_str,PSTR("%.2f;"), gd_Temp[i]);
   }
-  else if ( (Type == STYPE_ChimneyTemperature) || (Type == STYPE_FireBoxTemperature) )
-  {
-    fprintf_P(&UART0_str,PSTR("Type=%d, ID=%d, val=%e\n"), Type, ID, Value);
-  }
-  else
-  {
-    fprintf_P(&UART0_str,PSTR("Type=%d, ID=%d, val=%e, Vdd=%f, rtr=%d\n"), Type, ID, Value, Vdd, retries);
-  }
+    fprintf_P(&UART0_str,PSTR("\n"));
+}
+
+void ReportFurnaceTemperatures(float Tch, float Tfb)
+{
+  fprintf_P(&UART0_str,PSTR("Type=%d Tch=%.2f Tfb=%.2f\n"), STYPE_FurnaceTemperatures, Tch, Tfb);
 }
 
 void DecodeCommand(uint8_t *pu8_cmd)
@@ -70,6 +63,7 @@ void DecodeCommand(uint8_t *pu8_cmd)
   uint16_t  raw = (pu8_cmd[1]<<8) | pu8_cmd[2];
   double sensor_val=0;
   double Vdd = pu8_cmd[3]/10.0;
+  uint8_t retries = pu8_cmd[4];
 //  char txt[50];
   
 //  sprintf_P(txt,PSTR("Vdd=%.1fV N_retries=%d"),pu8_cmd[3]/10.0,pu8_cmd[4]);  
@@ -111,39 +105,107 @@ void DecodeCommand(uint8_t *pu8_cmd)
 //    printf_P(PSTR("Data:=0x%02X %02X %02X %02X %02X"),pu8_cmd[0], pu8_cmd[1], pu8_cmd[2], pu8_cmd[3], pu8_cmd[4]);
     break;
   }
-  ReportDataToWiFiModule(ID, type, sensor_val, Vdd, pu8_cmd[4]);
+  fprintf_P(&UART0_str,PSTR("Type=%d, ID=%d, val=%e, Vdd=%f, rtr=%d\n"), type, ID, sensor_val, Vdd, retries);
 }
 
+int finishDebugMode=0;
+void window_1_callback(UG_MESSAGE* msg)
+{
+  static int espPrgState=0;
+  static uint8_t backupPORTD,backupDDRD;
+  if (msg->type == MSG_TYPE_OBJECT)
+  {
+    if (msg->id == OBJ_TYPE_BUTTON)
+    {
+      switch (msg->sub_id)
+      {
+        case BTN_ID_0:
+        {
+          if (msg->event == OBJ_EVENT_RELEASED)
+          {
+            if (espPrgState == 0)
+            {
+              espPrgState = !espPrgState;
+              printf_P(PSTR("ESP programming mode ENABLED. "));
+              backupPORTD=PORTD;
+              backupDDRD=DDRD;
+              DDRD &= ~(3<<0);
+              PORTD |= (3<<0);
+            }
+            else
+            {
+              espPrgState = !espPrgState;
+              printf_P(PSTR("ESP programming mode DISABLED. "));
+              PORTD=backupPORTD;
+              DDRD=backupDDRD;
+            }
+          }
+          break;
+        }
+        case BTN_ID_1:
+        {
+          if (msg->event == OBJ_EVENT_RELEASED)
+          {
+            finishDebugMode=1;
+          }
+          break;
+        }
+      }
+    }
+  }
+}
+
+#define MAX_OBJECTS 10
 void debug_mode()
 {
-  int cmd;
-  int finish=0;
-  char txt[50];
-  uint8_t   pu8_data[33];
+  uint16_t x,y;
+  uint8_t pu8_data[33];
+  uint32_t timeToReadNRF,timeToReadUserInput;
+  UG_WINDOW window; //Window
+  UG_BUTTON button1; // Button container
+  UG_BUTTON button2; // Button container
+  UG_OBJECT obj_buff_wnd[MAX_OBJECTS]; //Object buffer
   
-  UG_FillFrame(0,0,320,12,C_WHITE);
-  UG_FillFrame(0,12,320,240,C_BLACK);
-	UG_SetForecolor(C_BLACK);
-  UG_SetBackcolor(C_WHITE);
-	UG_FontSelect( &RFONT_8X12 );
-  sprintf_P(txt,PSTR("Debug mode. Press ESC to exit.")); UG_PutString(10,1,txt);
-	UG_SetForecolor(C_WHITE);
-	UG_ConsoleSetBackcolor( ILI9341_BLACK );
-	UG_ConsoleSetForecolor( ILI9341_WHITE );
-	UG_ConsoleSetArea(1,13,318,238);
-
-  uint32_t t1;
+  finishDebugMode=0;
+  UG_WindowCreate(&window, obj_buff_wnd, MAX_OBJECTS, window_1_callback);
+  UG_WindowSetBackColor(&window,C_BLACK);
+  UG_WindowSetTitleText(&window, "Debug mode"); 
+  UG_ButtonCreate(&window, &button1, BTN_ID_0,   0, 170, 155, 216);
+  UG_ButtonSetBackColor(&window,BTN_ID_0,C_WHITE_SMOKE);
+  UG_ButtonSetText(&window, BTN_ID_0, "PROG_ESP");
+  UG_ButtonCreate(&window, &button2, BTN_ID_1, 156, 170, 312, 216);
+  UG_ButtonSetBackColor(&window,BTN_ID_1,C_WHITE_SMOKE);
+  UG_ButtonSetText(&window, BTN_ID_1, "EXIT");
+  UG_WindowShow(&window);
+  UG_Update();
+  
+  //UG_DrawFrame(2,17,316,189,C_RED);
+  UG_ConsoleSetArea(2,17,316,189);
+  
+  XPT2046_Init(320, 240);
+  XPT2046_setRotation(ROT0);
+  
   while (1)
   {
-    if (Has_X_MillisecondsPassed(100,&t1)) 
+    if (Has_X_MillisecondsPassed(10,&timeToReadUserInput))
     {
-      KBD_Read();
-      cmd = KBD_GetKey();
-      switch (cmd)
+      if (XPT2046_isTouching())
       {
-        case BTN3: finish=1; break;
+        XPT2046_getPosition(&x, &y, MODE_DFR, 0xff);
+        UG_DrawPixel(x,y,C_RED);
+        UG_TouchUpdate( x, y, TOUCH_STATE_PRESSED );
       }
-
+      else UG_TouchUpdate( -1, -1, TOUCH_STATE_RELEASED );
+      //KBD_Read();
+      //cmd = KBD_GetKey();
+      /*switch (cmd)
+      {
+        //case BTN3: finish=1; break;
+      }*/
+      UG_Update();
+    }    
+    if (Has_X_MillisecondsPassed(100,&timeToReadNRF))
+    {
       if(nrf24_dataReady())
       {
         printf(" D:");
@@ -151,10 +213,10 @@ void debug_mode()
         nrf24_getData(pu8_data);
         DecodeCommand(pu8_data);
       }
-    
     }
-    if (finish) break;
+    if (finishDebugMode) break;
   }
+  UG_WindowDelete(&window);
 }
 
 void menu()
@@ -166,12 +228,7 @@ void menu()
   char key;
   char txt[50];
   
-  UG_FillFrame(0,0,320,240,C_BLACK);
-  sprintf_P(txt,PSTR("Menu: ")); UG_PutString(10,60,txt);
-  sprintf_P(txt,PSTR("TOUCH - Debug mode")); UG_PutString(30,80,txt);
-  sprintf_P(txt,PSTR("T1    - Search for sensors.")); UG_PutString(30,120,txt);
-  sprintf_P(txt,PSTR("T2    - Set sensor order.")); UG_PutString(30,140,txt);
-  sprintf_P(txt,PSTR("exiting in")); UG_PutString(90,160,txt);
+  DisplayMenu();
 
   t1=GetSysTick();
   t2=t1;
@@ -188,6 +245,7 @@ void menu()
     {
       case BTN3:
         debug_mode();
+        DisplayMenu();
         t1=GetSysTick();
         break;
 /*      case BTN1:
@@ -222,9 +280,9 @@ int main(void)
 {
   uint8_t tx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
   uint8_t rx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
-  uint8_t   pu8_data[33];
+  uint8_t pu8_data[33];
 
-  uint32_t t1;
+  uint32_t measurementTime,StorageLevelReportingTime,TemperaturesReportingTime;
   double ChimneyTemperature=0, FireBoxTemperature=0;
   int result;
 
@@ -234,7 +292,9 @@ int main(void)
   UART0_Init(); UCSR0B &=~ (1<<RXEN0);  //Disable RX
   ADC_Init();
   LCD_Init();
+#ifdef DISPLAY_FLIPPED
   ILI9341_setRotation(1);
+#endif
   MAX31855_Init();
   XPT2046_Init(320,240);
   sei();
@@ -277,19 +337,19 @@ int main(void)
     }
     if (KBD_GetKey()) menu();
     
-    if (Has_X_MillisecondsPassed(200,&t1))
+    if (Has_X_MillisecondsPassed(200,&measurementTime))
     {
       Read_DS18x20_Temperature_OneByOne();   //Read temperatures of hot water storage tank
-      ReportDataToWiFiModule(THIS_STATION_ID, STYPE_HeatStorageLevels, 0, 0, 0);
       DisplayHotTankTemperatures();
 
       MAX31855_ReadTemperature(1, &FireBoxTemperature,NULL);
-      ReportDataToWiFiModule(THIS_STATION_ID, STYPE_FireBoxTemperature, FireBoxTemperature, 0, 0);
       MAX31855_ReadTemperature(2, &ChimneyTemperature,NULL);
-      ReportDataToWiFiModule(THIS_STATION_ID, STYPE_ChimneyTemperature, ChimneyTemperature, 0, 0);
-      DisplayTemp(ChimneyTemperature, FireBoxTemperature, 0);
 //      MAX31855_ReadTemperature(3, &Ktemp,NULL);
+      DisplayTemp(ChimneyTemperature, FireBoxTemperature, 0);
+      //Clock failure detect - draw a red square if detected: 
       if (XFDCSR & (1<<XFDIF)) UG_FillFrame(GRAPH_MIN_X-10,20,GRAPH_MIN_X-5,25,C_RED);
     }
+    if (Has_X_MillisecondsPassed(10000,&StorageLevelReportingTime)) ReportHeatStorageLevels();
+    if (Has_X_MillisecondsPassed(1000,&TemperaturesReportingTime)) ReportFurnaceTemperatures(ChimneyTemperature, FireBoxTemperature);
   }
 }

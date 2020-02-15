@@ -45,14 +45,26 @@ int UART0_putc(char c, FILE *stream)	//for use with printf
 	else return EOF;			//Error (EOF = -1)
 }
 
+#include "LCD_ILI9341.h"
+#include <avr/pgmspace.h>
 UART_Status_t UART0_put(char data)
 {
+  static int maxTBnum0=0;
+  int tbnum;
+  tbnum=maxTBnum0;
 	if (UART0_numTxBytes() >= TB_SIZE0) return UART_EOF;	//Error - buffer full
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		TxBuf0[TBin0]=data;
 		TBnum0++;
+    if (TBnum0 > maxTBnum0) maxTBnum0=TBnum0;
 	}
+  if (tbnum != maxTBnum0)
+  {
+    char txt[10];
+    sprintf_P(txt,PSTR("%3d"),maxTBnum0);
+    UG_PutString(35,30,txt);
+  }
 	TBin0++;
 	if (TBin0 >= TB_SIZE0) TBin0=0;
 	UCSR0B |= (1<<UDRIE0);	//enable transmit IRQ
@@ -111,7 +123,7 @@ char UART0_PreviewRxByte(int index)
 
 ISR(USART0_RX_vect)
 {
-  volatile char tmp;
+  char tmp __attribute__ ((unused));
 	if (RBnum0 < RB_SIZE0)
 	{
 		RxBuf0[RBin0]=UDR0;

@@ -10,7 +10,7 @@
 
 #include "XPT2046.h"
 
-uint16_t CAL_MARGIN = 20;
+uint16_t CAL_MARGIN = 0;
 uint8_t CTRL_LO_DFR = 0b0011;
 uint8_t CTRL_LO_SER = 0b0100;
 uint8_t CTRL_HI_X = 0b1001  << 4;
@@ -94,7 +94,7 @@ void XPT2046_Init(uint16_t width, uint16_t height)
   _height = height;
 
   XPT2046_setRotation(ROT90);
-  XPT2046_setCalibration(320,180,1885,1765);
+  XPT2046_setCalibration(130,170,1920,1880);
   XPT2046_powerDown();  // Make sure PENIRQ is enabled
 }
 

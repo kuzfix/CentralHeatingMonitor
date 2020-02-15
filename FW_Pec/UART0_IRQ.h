@@ -46,7 +46,7 @@ char UART0_PreviewRxByte(int index);
 
 extern FILE UART0_str;
 
-#define TB_SIZE0	100
+#define TB_SIZE0	400
 extern volatile char TxBuf0[TB_SIZE0];
 extern int TBin0;
 extern volatile int TBout0;

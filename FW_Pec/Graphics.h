@@ -37,6 +37,8 @@ void PrepSensorOrderDisplay();
 void DisplaySensorNr(int n);
 void DisplaySensorOrderTemperatures(char *order, int imax);
 void DisplayNewSensorOrder(char *order);
+void DisplayMenu();
+void DisplayDebugMode();
 
 extern double gd_Temp[MAXSENSORS];
 extern double gd_oldT[MAXSENSORS];

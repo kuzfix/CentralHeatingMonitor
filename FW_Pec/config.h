@@ -13,6 +13,7 @@
 #define BAUD1 9600UL
 #define BAUD0 115200UL
 
+#define DISPLAY_FLIPPED
 #define SHARE_SPI
 #define MAXSENSORS 18
 #define OW_ONE_BUS

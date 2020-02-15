@@ -10,8 +10,8 @@
 
 #include <avr/io.h>			//header file with register definitions
 /* B1,B2
-PD2
 PE0
+PD2
 PB1 - LCD TOUCH IRQ
 */
 
@@ -19,20 +19,20 @@ PB1 - LCD TOUCH IRQ
 #define BTN2	2
 #define BTN3	3
 
-#define BTN1_DDR	DDRD
-#define BTN2_DDR	DDRE
+#define BTN1_DDR	DDRE
+#define BTN2_DDR	DDRD
 #define BTN3_DDR	DDRB
 
-#define BTN1_PORT	PORTD
-#define BTN2_PORT	PORTE
+#define BTN1_PORT	PORTE
+#define BTN2_PORT	PORTD
 #define BTN3_PORT	PORTB
 
-#define BTN1_PIN	PIND
-#define BTN2_PIN	PINE
+#define BTN1_PIN	PINE
+#define BTN2_PIN	PIND
 #define BTN3_PIN	PINB
 
-#define BTN1_BIT	2
-#define BTN2_BIT	0
+#define BTN1_BIT	0
+#define BTN2_BIT	2
 #define BTN3_BIT	1
 
 void KBD_Init();

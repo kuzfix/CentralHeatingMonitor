@@ -100,7 +100,24 @@ void PrepDisplay()
     y=(GRAPH_WY*i)/DIVS;
     UG_DrawLine(GRAPH_MIN_X,y,GRAPH_MAX_X,y,C_GRAY);
   }
+#ifdef DISPLAY_FLIPPED
+  ILI9341_SetScrollArea(1,GRAPH_WX);
+#else
   ILI9341_SetScrollArea(GRAPH_MIN_X,GRAPH_WX);
+#endif
+}
+
+void DisplayMenu()
+{
+  char txt[50];
+  UG_SetForecolor(C_WHITE);
+  UG_SetBackcolor(C_BLACK);
+  UG_FillFrame(0,0,320,240,C_BLACK);
+  sprintf_P(txt,PSTR("Menu: ")); UG_PutString(10,60,txt);
+  sprintf_P(txt,PSTR("TOUCH - Debug mode")); UG_PutString(30,80,txt);
+  sprintf_P(txt,PSTR("T1    - Search for sensors.")); UG_PutString(30,120,txt);
+  sprintf_P(txt,PSTR("T2    - Set sensor order.")); UG_PutString(30,140,txt);
+  sprintf_P(txt,PSTR("exiting in")); UG_PutString(90,160,txt);
 }
 
 void DisplayHotTankTemperatures()
@@ -140,9 +157,9 @@ void DisplayTemp(double Tchim, double Tfire, char reset)
 {
   #define DECIMATION 300L
   char txt[50];
+  int x,y,color;
   static int ox,oy;
   static int32_t idx=-1;
-  int x,y,color;
 
   if (reset) idx=-1;
   if (Tfire<100) color = C_WHITE;
@@ -180,7 +197,7 @@ void DisplayTemp(double Tchim, double Tfire, char reset)
     oy=GRAPH_MAX_Y - ((double)(Tchim-MIN_T))/((double)(MAX_T-MIN_T))*GRAPH_WY;
   }
   else if (idx < -1 ) {} //what to do in case of overflow?
-  else if (idx < GRAPH_WX*DECIMATION)
+  else if (idx < GRAPH_WX*DECIMATION-1)
   {
     if ((idx % DECIMATION) == 0)
     {
@@ -196,10 +213,15 @@ void DisplayTemp(double Tchim, double Tfire, char reset)
     if ((idx % DECIMATION) == 0)
     {
       y=GRAPH_MAX_Y - ((double)(Tchim-MIN_T))/((double)(MAX_T-MIN_T))*GRAPH_WY;
-      if (ox == (GRAPH_MIN_X+GRAPH_WX)) //if wraparround
+      if (ox == (GRAPH_MIN_X+GRAPH_WX-1)) //if wraparround
       {
         x=GRAPH_MIN_X;
         ClearLastLine(x);
+      #ifdef DISPLAY_FLIPPED
+        ILI9341_Scroll(x+1);
+      #else
+        ILI9341_Scroll(GRAPH_WX-(x-GRAPH_MIN_X));
+      #endif
         UG_DrawLine(ox,oy,ox,(y+oy)/2,color);
         UG_DrawLine(x,(y+oy)/2,x,y,color);
       }
@@ -207,11 +229,15 @@ void DisplayTemp(double Tchim, double Tfire, char reset)
       {
         x=ox+1;
         ClearLastLine(x);
+      #ifdef DISPLAY_FLIPPED
+        ILI9341_Scroll(x+1);
+      #else
+        ILI9341_Scroll(GRAPH_WX-(x-GRAPH_MIN_X));
+      #endif
         UG_DrawLine(ox,oy,x,y,color);
       }
       ox=x;
       oy=y;
-      ILI9341_Scroll(GRAPH_WX-(x-GRAPH_MIN_X));
     }
   }
   idx++;

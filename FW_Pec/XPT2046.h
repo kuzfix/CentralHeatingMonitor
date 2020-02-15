@@ -52,7 +52,7 @@
 // On my display driver ICs i,j mapped to (width-y),x
 //  Flipping can be handled by order of calibration points, but not swapping
 #if !defined(SWAP_AXES)
-#  define SWAP_AXES 1
+#  define SWAP_AXES 0
 #endif
 
 extern uint16_t CAL_MARGIN;
