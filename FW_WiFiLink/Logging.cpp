@@ -102,9 +102,23 @@ void Log(String LogEntry, int Level)
 	struct tm* ptm_now;
 	char txt[50];
 	int length;
+	WiFiClient client;
+	HTTPClient httpClient;
+	String serverMsg;
 
 	if (Level <= LogLevel)
 	{
+		if (WiFi.status() == WL_CONNECTED)
+		{
+			serverMsg = StringF(DEBUG_MESSAGE_SERVER) + StringF("?dbgMsg=") + LogEntry;
+			serverMsg.replace("%", "%25"); //ta mora bit vedno prvi, ker drugace spremeni procente od ostalih
+			serverMsg.replace("#", "%23");
+			serverMsg.replace(" ", "%20");
+			serverMsg.replace("\n", "");	//any line feed characters break HTTP communication (ctime adds one)
+			serverMsg.replace("\r", "");	//not sure about these, but probably better if there are none
+			httpClient.begin(client, serverMsg);
+			httpClient.GET();
+		}
 		if (prepareLogFile())
 		{
 			logFile = SPIFFS.open(StringF("/LOG/log.htm"), "a");
@@ -130,4 +144,3 @@ void Log(String LogEntry, int Level)
 		}
 	}
 }
-

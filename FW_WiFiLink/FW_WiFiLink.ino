@@ -17,7 +17,7 @@
 //Flash Mode: DIO
 //Flash Frequency: 40MHz
 //CPU Frequency: 80MHz
-//Flash Size: 4M(1M SPIFFS)
+//Flash Size: 1M(128k SPIFFS)
 //Debug port: Disabled
 //Debug Level: None
 //Reset Method: dtr (aka nodemcu)
@@ -72,7 +72,6 @@ void setup()
 	sprintf(Host_Name, StringF("%s").c_str(), DeviceName);
 	WiFi.hostname(Host_Name);
 	SERIAL_DBG_PORT.println(StringF("Host name: ") + String(Host_Name));
-	Log(Host_Name, LL_SYSTEM_INFO);
 
 	WiFi.setPhyMode(WIFI_PHY_MODE_11G);
 	WiFi.setOutputPower(17); // max. power 802.11n 14dBm ; 802.11g 17dBm ; 802.11b 20dBm
@@ -89,7 +88,7 @@ void setup()
 }
 // END setup()
 
-int lastButton;
+/*int lastButton;
 bool ReadButton()
 {
 	static int oldState;
@@ -105,7 +104,7 @@ bool ReadButton()
 	}
 	oldState = newState;
 	return eventHappened;
-}
+}*/
 
 void CheckForAnyHttpRequests()
 {
@@ -119,9 +118,9 @@ void CheckForAnyHttpRequests()
 
 void ProcessServerReply(String reply)
 {
-	if (reply == StringF("update")) GetFWUpdate();
+	//if (reply == StringF("update")) GetFWUpdate();
 }
-
+/*
 void PrintHeapStatistics()
 {
 	// we could use getFreeHeap() getMaxFreeBlockSize() and getHeapFragmentation()
@@ -134,7 +133,7 @@ void PrintHeapStatistics()
 	sprintf(txt,StringF("HEAP stats: free: %5d - max: %5d - frag: %3d%%").c_str(), free, max, frag);
 	Log(String(txt), LL_MEM_STATS);
 }
-
+*/
 #define THIS_STATION_ID  0xFE
 #define STYPE_Tds18b20		0x01
 #define STYPE_Tsht21			0x02
@@ -143,9 +142,8 @@ void PrintHeapStatistics()
 #define STYPE_Pbmp280			0x05
 #define STYPE_TankLevel		0x06
 //Expanded types (that NRF link doesnt know, but WiFi link does)
-#define STYPE_ChimneyTemperature  0x11
-#define STYPE_FireBoxTemperature  0x12
-#define STYPE_HeatStorageLevels   0x13
+#define STYPE_FurnaceTemperatures  0x11
+#define STYPE_HeatStorageLevels   0x12
 
 String LastUARTmsg;
 int msgCnt;
@@ -154,31 +152,125 @@ void DecodeMessage(String msg)
 {
 	uint32_t local_timestamp;
 	uint16_t type=0;
+	boolean valueParsed = false;
+	boolean dataMissing = false;
+	boolean nonessentialDataMissing = false;
 	uint16_t ID=0;
 	float value=-999.99;
 	float Vdd=-1;
-	uint8_t retries=0;
+	uint8_t retries=-1;
 	uint8_t SensorNumber = 0;
-
-	msgCnt++;
-	LastUARTmsg = msg;
+	int i;
 
 	local_timestamp = millis();
-	if (msg.indexOf(StringF("Type=")) >= 0) type = msg.substring(msg.indexOf("Type=") + 5).toInt();
-	if (msg.indexOf(StringF("ID=")) >= 0) ID = msg.substring(msg.indexOf("ID=") + 3).toInt();
-	if (msg.indexOf(StringF("SensNum=")) >= 0) SensorNumber = msg.substring(msg.indexOf("SensNum=") + 8).toInt();
-	if (msg.indexOf(StringF("val=")) >= 0) value = msg.substring(msg.indexOf("val=") + 4).toFloat();
-	if (msg.indexOf(StringF("Vdd=")) >= 0) Vdd = msg.substring(msg.indexOf("Vdd=") + 4).toFloat();
-	if (msg.indexOf(StringF("rtr=")) >= 0) retries = msg.substring(msg.indexOf("rtr=") + 4).toInt();
-
-	if (type == STYPE_HeatStorageLevels) HeatStorage.updateT(SensorNumber, value);
-	else if (type == STYPE_ChimneyTemperature) ChimneyTemperatures.storeT(value);
-	else if (type == STYPE_FireBoxTemperature) FireBoxTemperatures.storeT(value);
-	else MeasurementResults.storeResult(local_timestamp, type, ID, value, Vdd, retries);
 
 	if (msg.indexOf("SoftAP") >= 0)
 	{
-		CreateSoftAP();
+		//CreateSoftAP();
+		return;
+	}
+
+	if (msg.indexOf(StringF("Type=")) >= 0) type = msg.substring(msg.indexOf("Type=") + 5).toInt();
+
+	if (type == STYPE_HeatStorageLevels)
+	{
+		if (msg.indexOf(StringF("Tlist=")) >= 0)
+		{
+			String Tlist = msg.substring(msg.indexOf(StringF("Tlist=")) + 6);
+			for (i = 0; i < MAX_HEAT_STR_SENSORS; i++)
+			{
+				value = Tlist.toDouble();
+				SERIAL_DBG_PORT.print(String(i)+": "+Tlist+"   val=");
+				SERIAL_DBG_PORT.println(value);
+				HeatStorage.updateT(i, value);
+				if (Tlist.indexOf(StringF(";")) < 0) break;
+				Tlist = Tlist.substring(msg.indexOf(StringF(";")) + 1);
+			}
+			
+			if (i< MAX_HEAT_STR_SENSORS)
+			{
+				//Something's not right. Debug msg?
+				msgCnt++;
+				LastUARTmsg = msg;
+				Log(StringF("DecodeHSL(")+String(msgCnt)+StringF("):")+ LastUARTmsg, LL_DEBUG_MSG);
+			}
+		}
+	}
+	else if (type == STYPE_FurnaceTemperatures)
+	{
+		if (msg.indexOf(StringF("Tch=")) >= 0)
+		{
+			ChimneyTemperatures.storeT(msg.substring(msg.indexOf(StringF("Tch=")) + 4).toFloat());
+		}
+		else dataMissing = true;
+		if (msg.indexOf(StringF("Tfb=")) >= 0)
+		{
+			FireBoxTemperatures.storeT(msg.substring(msg.indexOf(StringF("Tfb=")) + 4).toFloat());
+		}
+		else dataMissing = true;
+
+		if (dataMissing)
+		{
+			//Something's not right. Debug msg?
+			msgCnt++;
+			LastUARTmsg = msg;
+			Log(StringF("DecodeFT(") + String(msgCnt) + StringF("):") + LastUARTmsg, LL_DEBUG_MSG);
+		}
+	}
+	else if ( (type == STYPE_Tds18b20) ||
+			  (type == STYPE_Tsht21) ||
+			  (type == STYPE_Hsht21) ||
+			  (type == STYPE_Tbmp280) ||
+			  (type == STYPE_Pbmp280) ||
+			  (type == STYPE_TankLevel) )
+	{
+		if (msg.indexOf(StringF("ID=")) >= 0)
+		{
+			ID = msg.substring(msg.indexOf("ID=") + 3).toInt();
+			if (ID == 0) dataMissing = true;
+		}
+		else dataMissing = true;
+		if (msg.indexOf(StringF("val=")) >= 0)
+		{
+			value = msg.substring(msg.indexOf("val=") + 4).toFloat();
+			valueParsed = true;
+		}
+		else dataMissing = true;
+		if (msg.indexOf(StringF("Vdd=")) >= 0)
+		{
+			Vdd = msg.substring(msg.indexOf("Vdd=") + 4).toFloat();
+			if (Vdd == 0.0) nonessentialDataMissing = true;
+		}
+		else nonessentialDataMissing = true;
+		if (msg.indexOf(StringF("rtr=")) >= 0)
+		{
+			retries = msg.substring(msg.indexOf("rtr=") + 4).toInt();
+		}
+		else nonessentialDataMissing = true;
+		
+		if (!dataMissing) MeasurementResults.storeResult(local_timestamp, type, ID, value, Vdd, retries);
+		else
+		{
+			//Data Missing. Debug?
+			msgCnt++;
+			LastUARTmsg = msg;
+			Log(StringF("DecodeSensorDataMissing(") + String(msgCnt) + StringF("):") + LastUARTmsg, LL_DEBUG_MSG);
+		}
+		
+		if (nonessentialDataMissing)
+		{
+			//Nonessential Data Missing. Debug?
+			msgCnt++;
+			LastUARTmsg = msg;
+			Log(StringF("DecodeNonessentialDM(") + String(msgCnt) + StringF("):") + LastUARTmsg, LL_DEBUG_MSG);
+		}
+	}
+	else
+	{
+		//Unknown type. Debug?
+		msgCnt++;
+		LastUARTmsg = msg;
+		Log(StringF("DecodeUnknown(") + String(msgCnt) + StringF("):") + LastUARTmsg, LL_DEBUG_MSG);
 	}
 }
 

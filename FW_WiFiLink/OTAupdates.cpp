@@ -1,5 +1,7 @@
 #include "OTAupdates.h"
 
+//#define USE_WEB_UPDATES
+
 String str_updateServer = DEFAULT_UPDATE_SERVER;
 String str_updateFile = DEFAULT_UPDATE_FILE;
 
@@ -9,6 +11,8 @@ const char update_username [] PROGMEM = "jubomaster";
 const char update_password [] PROGMEM = "zajebanOgeslo3";
 
 //Update security
+
+#ifdef USE_WEB_UPDATES
 const char pubkey[] PROGMEM = R"====(
 -----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA+65eoFSFpAwirfKnV+kg
@@ -24,6 +28,7 @@ MyjUIntUXjrs3v8CXPTCscGB+8Kg/5pwYB7EfgPfJsw/6M1wNfBajYG1FdF6Cng6
 BearSSL::PublicKey* signPubKey = nullptr;
 BearSSL::HashSHA256* hash;
 BearSSL::SigningVerifier* sign;
+#endif
 
 ESP8266HTTPUpdateServer httpUpdater;
 
@@ -31,7 +36,7 @@ void Init_HTTPupdater()
 {
 	httpUpdater.setup(&HTTP_SERVER, FPSTR(update_path), FPSTR(update_username), FPSTR(update_password));
 }
-
+#ifdef USE_WEB_UPDATES
 void UPD_OnStart()
 {
 	SERIAL_DBG_PORT.printF("Starting update ");
@@ -84,3 +89,4 @@ void GetFWUpdate()
 						//restart is actually only necessary on error, because update process screws up NTP syncing
 	}
 }
+#endif

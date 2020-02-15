@@ -24,7 +24,7 @@ extern HardwareSerial SERIAL_DBG_PORT;
 // Log levels
 #define LL_NONE						0
 #define LL_SYSTEM_ERROR				1
-#define LL_CONFIG_ERROR				2
+#define LL_DEBUG_MSG				2
 #define LL_CONNECTION_ERROR			3
 #define LL_NTP_ERROR				4
 #define LL_DATA_UPLOAD_ERROR		5
@@ -47,4 +47,3 @@ void Log(String LogEntry, int Level);
 
 
 #endif
-

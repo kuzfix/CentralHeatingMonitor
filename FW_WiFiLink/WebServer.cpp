@@ -14,43 +14,11 @@ const char HtmlHeader[] PROGMEM = R"====(
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 )====";
 
-const char HtmlCalPopUpStyle[] PROGMEM = R"====(
-.rawvals {
-	text-align: right;
-	position: fixed;
-	z-index:9999999;
-	top: 15px;
-	right: 15px;
-	-webkit-box-sizing: content-box;
-	-moz-box-sizing: content-box;
-	box-sizing: content-box;
-	padding: 20px;
-	overflow: hidden;
-	border: none;
-	-webkit-border-radius: 24px;
-	border-radius: 24px;
-	font: normal 32px/1 Verdana, Geneva, sans-serif;
-	color: rgba(255,255,255,1);
-	text-align: center;
-	-o-text-overflow: ellipsis;
-	text-overflow: ellipsis;
-	background: rgba(1, 153, 217, 0.5);
-	-webkit-box-shadow: 4px 4px 10px 0 rgba(0, 0, 0, 0.7);
-	box-shadow: 4px 4px 10px 0 rgba(0, 0, 0, 0.7);
-	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-	}
-)====";
-
 const char htmlHeadPt1[] PROGMEM = R"====(
 <style> table, th, td { border: 1px solid black; border-collapse: collapse; } </style> </head>
 <body><center>
 <h3> Device: )====";
 
-bool SetSoftAPStart()
-{
-	lastServerActivity = millis();
-	return true;
-}
 /*
 uint32_t HandleHttpRequests()
 {
@@ -68,7 +36,6 @@ uint32_t HandleHttpRequests()
 			lastServerActivity = millis();
 		}
 	}
-
 
 	symbol = "!";
 	if (WiFi.softAPgetStationNum() > 0)	//no timeout as long as someone is connected
@@ -108,16 +75,25 @@ uint32_t HandleHttpRequests()
 
 void handleAjaxData(void) {
 	String message;
+	int i;
 	float HSPercent;
 	float ChimneyT, ChimneyTmin, ChimneyTmax;
 	float FireBoxT, FireBoxTmin, FireBoxTmax;
+	float HeatStorageT[MAX_HEAT_STR_SENSORS];
 
+	HeatStorage.getT(HeatStorageT);
 	HSPercent = HeatStorage.getPercentage();
 	ChimneyTemperatures.peekT(&ChimneyT, &ChimneyTmin, &ChimneyTmax);
 	FireBoxTemperatures.peekT(&FireBoxT, &FireBoxTmin, &FireBoxTmax);
 
 	message = StringF("{");
 	message += StringF("\"HSPercent\":") + String(HSPercent, 3);
+	message += StringF(", \"HSTemps\": [");
+	for (i = MAX_HEAT_STR_SENSORS - 1; i > 0; i--)
+	{
+		message += String(HeatStorageT[i], 3)+ StringF(", ");
+	}
+	message += String(HeatStorageT[i], 3) + StringF("]");
 	message += StringF(", \"ChimneyT\":") + String(ChimneyT, 3);
 	message += StringF(", \"FireBoxT\":") + String(FireBoxT, 3);
 	message += StringF("}");
@@ -126,7 +102,24 @@ void handleAjaxData(void) {
 }
 
 const char javaScriptMainPage[] PROGMEM = R"====(
-<script type="text/javascript" src="graphs.js"></script>
+<link rel="stylesheet" type="text/css" href="chartist.css">
+        <style type="text/css">
+.wrapper { 
+  overflow:hidden;
+}
+.wrapper div {
+   background-color: white;
+   min-height: 100px;
+   padding: 10px;
+ }
+
+.flt-div {
+  float:left; 
+  max-width:300px;
+  border-style: solid 1px;
+}
+</style>
+<script type="text/javascript" src="chartist.js"></script>
 <script type="text/javascript">
 function getData() {
 	var xhttp = new XMLHttpRequest();
@@ -141,17 +134,31 @@ function getData() {
 						measData.FireBoxT + " &deg;C<br>" +
 						measData.ChimneyT + " &deg;C";
 				}
-				HeatStorePercent.add(measData.HSPercent);
-				ChimneyT.add(measData.ChimneyT);
 			}
 			if (measData.hasOwnProperty('HSPercent')) {
-				HeatStorePercent.add(measData.HSPercent);
+				AddHSPercent(measData.HSPercent);
 			}
 			if (measData.hasOwnProperty('FireBoxT')) {
-				FireBoxT.add(measData.FireBoxT);
+				AddFireBoxT(measData.FireBoxT);
 			}
 			if (measData.hasOwnProperty('ChimneyT')) {
-				ChimneyT.add(measData.ChimneyT);
+				AddChimneyT(measData.ChimneyT);
+			}
+			if (measData.hasOwnProperty('HSTemps')) {
+				let sensorCnt=0;
+				measData.HSTemps.forEach(function(element){
+					UpdateHSTemp(sensorCnt, element);
+					sensorCnt++;
+				});
+				if (document.getElementById("HeatStrTemps") !== null ) {
+					let sensorCnt=0;
+					let HSTempTableString = "";
+					measData.HSTemps.forEach(function(element){
+						HSTempTableString += "T"+ sensorCnt +" = "+ element + "C<br>";
+						sensorCnt++;
+					});
+					document.getElementById("HeatStrTemps").innerHTML = HSTempTableString;
+				} 
 			}
 			setTimeout(getData, 1000);
 		}
@@ -160,22 +167,94 @@ function getData() {
 	xhttp.send();
 }
 
+var HSPdata = {
+    series: [
+      []
+    ]
+};
+
+var ChimTdata = {
+      series: [[]]
+};
+
+var FireTdata = {
+      series: [[]]
+};
+var HSTdata = {
+    labels: ['Storage'],
+    series: [[{x:0, y:10}],[{x:0, y:10}],[{x:0, y:10}],[{x:0, y:10}],
+             [{x:0, y:10}],[{x:0, y:10}],[{x:0, y:10}],[{x:0, y:10}],
+             [{x:0, y:10}],[{x:0, y:10}],[{x:0, y:10}],[{x:0, y:10}],
+             [{x:0, y:10}],[{x:0, y:10}],[{x:0, y:10}],[{x:0, y:10}],
+             [{x:0, y:10}] ]
+};
+
+function AddChimneyT(value)
+{
+    ChimTdata.series[0].push(value);
+    ChartChimneyT.update(ChimTdata);
+}
+
+function AddFireBoxT(value)
+{
+    FireTdata.series[0].push(value);
+    ChartFireBoxT.update(FireTdata);
+}
+function AddHSPercent(value)
+{
+    if (value<0) value = 0;
+    if (value>100) value = 100;
+    HSPdata.series[0].push(value);
+    ChartHSP.update(HSPdata);
+}
+
+function UpdateHSTemp(sensorN, value)
+{
+    if (value<0) value = 0;
+    if (value>60) value = 60;
+    if (sensorN < 18)
+    {
+        HSTdata.series[sensorN][0].x=value;
+    }
+    else
+	{
+		HSTdata.series[0][0].x=value;
+	}
+    ChartHST.update(HSTdata);
+}
 function onBodyLoad(){
-    HeatStorePercent = createGraph(document.getElementById("HSPercent"), "Temperatura zalogovnika [&percnt;]", 100, 200, 0, 100, true, "green");
-    ChimneyT = createGraph(document.getElementById("CHTemperature"), "Temperatura v dimniku", 100, 125, 0, 500, false, "orange");
-    FireBoxT = createGraph(document.getElementById("FBTemperature"), "Temperatura v peci", 100, 125, 0, 1400, false, "red");
+    ChartChimneyT = new Chartist.Line('#CHTemperature', ChimTdata, {axisX: { showGrid: false, showLabel: false}});
+    ChartHSP = new Chartist.Line('#HSPercent', HSPdata, {showPoint: false, axisX: { showGrid: false, showLabel: false}});
+    ChartHST = new Chartist.Bar('#HSTemp', HSTdata, {stackBars: true});
+    ChartFireBoxT = new Chartist.Line('#FBTemperature', FireTdata,{axisX: { showGrid: false, showLabel: false}});
+    
+    ChartHST.on('draw', function(context) {
+        if(context.type === 'bar') {
+          var clr_val=Chartist.getMultiValue(context.value.x);
+          if (clr_val > 60) clr_val=60;
+          context.element.attr({
+            style: 'stroke-width: 100px; stroke: hsl(' + Math.floor((60-clr_val) / 60 * 240) + ', 50%, 50%);'
+          });
+        }
+    });
 	setTimeout(getData, 10);
 }
+
 </script>
 )====";
 
 const char dataDisplayMainPage[] PROGMEM = R"====(
-	<div id='CHTemperature'></div>
-	<div id='HSPercent'></div>
-	<div id='FBTemperature'></div>
+        <div class="wrapper">
+            <div class="ct-chart ct-minor-seventh flt-div" id="CHTemperature"></div>
+            <div class="ct-chart ct-minor-seventh flt-div" id="HSPercent"></div>
+            <div class="ct-chart ct-minor-seventh flt-div" id="HSTemp"></div>
+            <div class="ct-chart ct-minor-seventh flt-div" id="FBTemperature"></div>
+        </div>
 	<div id='measurements'>
-		Waiting for data...</br>
 		Waiting for data...
+	</div>
+	<div id='HeatStrTemps'>
+		Waiting... 
 	</div>
 )====";
 extern String LastUARTmsg;
@@ -196,7 +275,6 @@ void handleRoot(void)
 	message += strServerAddress;
 	message += StringF("</p>");
 
-	message += String(FPSTR(dataDisplayMainPage));
 
 	message += StringF("<p>DEBUG INFO:<br>");
 	message += StringF("<br>millis():") + String(millis());
@@ -218,6 +296,8 @@ void handleRoot(void)
 
 	LastUARTmsg = "";
 	message += StringF("</p>");
+
+	message += String(FPSTR(dataDisplayMainPage));
 
 	message += StringF("</br>");
 	message += StringF("<a href='chg_name'>Change Name, ID, Position and Log level</a>");

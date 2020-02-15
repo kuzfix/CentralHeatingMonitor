@@ -39,7 +39,7 @@ extern HardwareSerial SERIAL_DBG_PORT;
 #warning "Undefined macro. Using default NTP_LOCAL_PORT	2390!"
 #endif
 
-#define NTP_DEFAULT_MILLIS_DRIFT	5	//Measured drift on 1 ESP at cca. 30°C: 3.4ms/min
+#define NTP_DEFAULT_MILLIS_DRIFT	5	//Measured drift on 1 ESP at cca. 30ï¿½C: 3.4ms/min
 
 /*
 EPOCH: thursday 1.1.1970

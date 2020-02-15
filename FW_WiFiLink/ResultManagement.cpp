@@ -22,7 +22,6 @@ void HeatStorageClass::updateT(int sensorNumber, float T)
 {
 	if (sensorNumber >= MAX_HEAT_STR_SENSORS) sensorNumber = MAX_HEAT_STR_SENSORS - 1;
 	HeatStorageT[sensorNumber] = T;
-	Serial.print("Sizeof: " + String(sizeof(HeatStorageT)));
 }
 
 void HeatStorageClass::getT(float Temps[MAX_HEAT_STR_SENSORS])
@@ -244,7 +243,9 @@ String MeasurementResultsClass::getServerString()
 		serverMsg = strServerAddress;
 		serverMsg += StringF("?sensID=") + String(results[buf_OUT].ID*256 + results[buf_OUT].type);
 		serverMsg += StringF("&time=") + String(tt_UNIXtimestamp);
-		serverMsg += StringF("&Temp=") + String(results[buf_OUT].value, 3);
+		serverMsg += StringF("&temp=") + String(results[buf_OUT].value, 3);
+		serverMsg += StringF("&Vdd=") + String(results[buf_OUT].Vdd, 3);
+		serverMsg += StringF("&retries=") + String(results[buf_OUT].retries);
 
 /*		serverMsg += StringF("?private_key=") + String(private_key);
 		serverMsg += StringF("&timestamp[s]=") + String(tt_UNIXtimestamp);
@@ -282,6 +283,7 @@ String PostData()
 {
 	boolean result;
 	int i_httpResult,i_ResultIndex,i;
+	WiFiClient client;
 	HTTPClient httpClient;
 	String ServerMessage;
 	String ServerReply;
@@ -295,7 +297,8 @@ String PostData()
 			ServerMessage = MeasurementResults.getServerString();
 			SERIAL_DBG_PORT.println(StringF("Uploading data:\r\n") + ServerMessage);
 
-			httpClient.begin(ServerMessage);
+			httpClient.begin(client, ServerMessage);
+//			httpClient.begin(ServerMessage);	deprecated
 			i_httpResult = httpClient.GET();
 			SERIAL_DBG_PORT.print(StringF("Result ") + String(i_httpResult) + StringF(". "));
 			if (i_httpResult == HTTP_CODE_OK)

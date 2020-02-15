@@ -22,4 +22,3 @@ void DisconnectFromWiFi();
 bool CreateSoftAP();
 
 #endif
-

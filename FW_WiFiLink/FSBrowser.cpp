@@ -194,5 +194,3 @@ void handleFileList() {
     output += StringF("]");
     HTTP_SERVER.send(200, StringF("text/json"), output);
 }
-
-

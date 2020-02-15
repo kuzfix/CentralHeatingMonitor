@@ -1,7 +1,7 @@
 #ifndef _CONFIG_H
 #define _CONFIG_H
 
-#define DEBUGING
+//#define DEBUGING
 
 #include "HelperMacros.h"
 
@@ -18,9 +18,11 @@
 #define DEFAULT_UPDATE_SERVER	"192.168.0.11"
 #define DEFAULT_UPDATE_FILE		"/update/ESPUpdate.php"
 
+#define DEBUG_MESSAGE_SERVER	"http://192.168.0.11/submit/debugMsg.php"
+
 //Result Management
 #define MAX_SERVER_SEND_RETRIES	3
-#define MAX_HEAT_STR_SENSORS	20
+#define MAX_HEAT_STR_SENSORS	17
 #define BOILER_DATA_HISTORY_LENGTH	500
 #define MEASUREMENT_RESULT_BUFFER_SIZE	(32*12)
 #define BT_AVERAGING_PERIOD	60000

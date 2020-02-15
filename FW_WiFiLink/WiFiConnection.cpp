@@ -1,7 +1,7 @@
 #include "WiFiConnection.h"
 
 int i_WiFiConnectTimeout = DEFAULT_WIFI_CONNECT_TIMEOUT;
-int FindBestChannel();
+//int FindBestChannel();
 
 boolean ConnectToWiFi()
 {
@@ -48,7 +48,7 @@ boolean ConnectToWiFi()
 	if (WiFi.status() != WL_CONNECTED)
 	{
 		result = false;
-		Log(StringF("Connection to any provided network failed."), LL_CONNECTION_ERROR);
+		Log(StringF("Connection to any provided network failed."), LL_CONNECTION);
 	}
 
 	return result;
@@ -60,7 +60,7 @@ void DisconnectFromWiFi()
 		//WiFi.disconnect(true);	//Should be the same as WIFI_OFF, no current spikes after this.
 									//disconnect(true) seams to cause trouble with the watchdog.
 }
-
+/*
 //Combining STA mode and Soft-AP mode does not work well!
 //The reason is hardware limitations of the module (only one radio).
 //Whenever a Soft-AP mode is used, reset the module to return the module to station mode.
@@ -102,4 +102,4 @@ int FindBestChannel()
 	int bestChannel = 3;
 	//TODO:
 	return bestChannel;
-}
+}*/

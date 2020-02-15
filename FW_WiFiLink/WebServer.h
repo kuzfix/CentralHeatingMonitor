@@ -16,7 +16,5 @@ extern HardwareSerial SERIAL_DBG_PORT;
 extern ESP8266WebServer HTTP_SERVER;
 
 void Init_WebServer(void);
-//uint32_t HandleHttpRequests();
-bool SetSoftAPStart();
 
 #endif	//_WEB_SERVER_H_

@@ -15,4 +15,3 @@ extern HardwareSerial SERIAL_DBG_PORT;
 void Measure(void);
 
 #endif
-
