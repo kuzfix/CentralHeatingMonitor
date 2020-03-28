@@ -83,8 +83,6 @@ void handleAjaxData(void) {
 
 	HeatStorage.getT(HeatStorageT);
 	HSPercent = HeatStorage.getPercentage();
-	ChimneyTemperatures.peekT(&ChimneyT, &ChimneyTmin, &ChimneyTmax);
-	FireBoxTemperatures.peekT(&FireBoxT, &FireBoxTmin, &FireBoxTmax);
 
 	message = StringF("{");
 	message += StringF("\"HSPercent\":") + String(HSPercent, 3);
@@ -94,13 +92,43 @@ void handleAjaxData(void) {
 		message += String(HeatStorageT[i], 3)+ StringF(", ");
 	}
 	message += String(HeatStorageT[i], 3) + StringF("]");
-	message += StringF(", \"ChimneyT\":") + String(ChimneyT, 3);
-	message += StringF(", \"FireBoxT\":") + String(FireBoxT, 3);
+	
+	message += StringF(", \"ChimneyT\": [");
+	for (i = 0; i < ChimneyTemperatures.getNumberOfStoredT()-1 ; i++)
+	{
+		ChimneyTemperatures.peekT(i, &ChimneyT, &ChimneyTmin, &ChimneyTmax);
+		message += String(ChimneyT, 1) + StringF(",");
+	}
+	ChimneyTemperatures.peekT(i, &ChimneyT, &ChimneyTmin, &ChimneyTmax);
+	message += String(ChimneyT, 1) + StringF("]");
+	
+	message += StringF(", \"FireBoxT\": [");
+	for (i = 0; i < FireBoxTemperatures.getNumberOfStoredT() - 1; i++)
+	{
+		FireBoxTemperatures.peekT(i, &FireBoxT, &FireBoxTmin, &FireBoxTmax);
+		message += String(FireBoxT, 1) + StringF(",");
+	}
+	FireBoxTemperatures.peekT(i, &FireBoxT, &FireBoxTmin, &FireBoxTmax);
+	message += String(FireBoxT, 1) + StringF("]");
+	//DEBUG data
+/*	message += StringF(", \"buf_IN\":") + String(MeasurementResults.buf_IN);
+	message += StringF(", \"buf_OUT\":") + String(MeasurementResults.buf_OUT);
+	message += StringF(", \"buf_N\":") + String(MeasurementResults.buf_N);
+	message += StringF(", \"buffer\": [");
+	for (i = 0; i < MEASUREMENT_RESULT_BUFFER_SIZE - 1; i++)
+	{
+		message += StringF("[")+String(MeasurementResults.results[i].ID) 
+			+ StringF(",") + String(MeasurementResults.results[i].value,1)+ StringF("],");
+	}
+	message += StringF("[") + String(MeasurementResults.results[i].ID)
+		+ StringF(",") + String(MeasurementResults.results[i].value, 1) + StringF("]]");
+		*/
 	message += StringF("}");
 
 	HTTP_SERVER.send(200, StringF("text/json"), message);
 }
 
+#if 0
 const char javaScriptMainPage[] PROGMEM = R"====(
 <link rel="stylesheet" type="text/css" href="chartist.css">
         <style type="text/css">
@@ -139,10 +167,18 @@ function getData() {
 				AddHSPercent(measData.HSPercent);
 			}
 			if (measData.hasOwnProperty('FireBoxT')) {
-				AddFireBoxT(measData.FireBoxT);
+			    FireTdata.series[0]=[];
+				measData.FireBoxT.forEach(function(element){
+					FireTdata.series[0].push(element);
+				});
+				ChartFireBoxT.update(FireTdata);
 			}
 			if (measData.hasOwnProperty('ChimneyT')) {
-				AddChimneyT(measData.ChimneyT);
+			    ChimTdata.series[0]=[];
+				measData.ChimneyT.forEach(function(element){
+					ChimTdata.series[0].push(element);
+				});
+				ChartChimneyT.update(ChimTdata);
 			}
 			if (measData.hasOwnProperty('HSTemps')) {
 				let sensorCnt=0;
@@ -150,17 +186,31 @@ function getData() {
 					UpdateHSTemp(sensorCnt, element);
 					sensorCnt++;
 				});
-				if (document.getElementById("HeatStrTemps") !== null ) {
-					let sensorCnt=0;
-					let HSTempTableString = "";
-					measData.HSTemps.forEach(function(element){
-						HSTempTableString += "T"+ sensorCnt +" = "+ element + "C<br>";
-						sensorCnt++;
-					});
-					document.getElementById("HeatStrTemps").innerHTML = HSTempTableString;
-				} 
 			}
-			setTimeout(getData, 1000);
+
+			if (measData.hasOwnProperty('buf_IN') &&
+				measData.hasOwnProperty('buf_OUT') &&
+				measData.hasOwnProperty('buf_N') ) 
+			{
+				if (document.getElementById("dbg1") !== null ) {
+					document.getElementById("dbg1").innerHTML = "IN=" + measData.buf_IN + "<br>" +
+						"OUT=" + measData.buf_OUT + "<br>" +
+						"N=" + measData.buf_N;
+				}
+			}
+			if (measData.hasOwnProperty('buffer'))
+			{
+				if (document.getElementById("dbg2") !== null ) {
+					let div_txt="";
+					let buf_idx=0;
+					measData.buffer.forEach(function(element){
+						div_txt += buf_idx + ": ID=" + measData.buffer[buf_idx][0] + ", val=" +measData.buffer[buf_idx][1] + "<br>";
+						buf_idx++;
+					});
+					document.getElementById("dbg2").innerHTML = div_txt;
+				}
+			}
+			setTimeout(getData, 100);
 		}
 	};
 	xhttp.open("GET", "ajax_data", true);
@@ -189,17 +239,6 @@ var HSTdata = {
              [{x:0, y:10}] ]
 };
 
-function AddChimneyT(value)
-{
-    ChimTdata.series[0].push(value);
-    ChartChimneyT.update(ChimTdata);
-}
-
-function AddFireBoxT(value)
-{
-    FireTdata.series[0].push(value);
-    ChartFireBoxT.update(FireTdata);
-}
 function AddHSPercent(value)
 {
     if (value<0) value = 0;
@@ -223,7 +262,7 @@ function UpdateHSTemp(sensorN, value)
     ChartHST.update(HSTdata);
 }
 function onBodyLoad(){
-    ChartChimneyT = new Chartist.Line('#CHTemperature', ChimTdata, {axisX: { showGrid: false, showLabel: false}});
+    ChartChimneyT = new Chartist.Line('#CHTemperature', ChimTdata, {lineSmooth: false, axisX: { showGrid: false, showLabel: false}});
     ChartHSP = new Chartist.Line('#HSPercent', HSPdata, {showPoint: false, axisX: { showGrid: false, showLabel: false}});
     ChartHST = new Chartist.Bar('#HSTemp', HSTdata, {stackBars: true});
     ChartFireBoxT = new Chartist.Line('#FBTemperature', FireTdata,{axisX: { showGrid: false, showLabel: false}});
@@ -242,21 +281,49 @@ function onBodyLoad(){
 
 </script>
 )====";
+#else
+const char javaScriptMainPage[] PROGMEM = R"====(
+<link rel="stylesheet" type="text/css" href="chartist.css">
+        <style type="text/css">
+.wrapper { 
+  overflow:hidden;
+}
+.wrapper div {
+   background-color: white;
+   min-height: 100px;
+   padding: 10px;
+ }
 
+.flt-div {
+  float:left; 
+  max-width:300px;
+  border-style: solid 1px;
+}
+</style>
+<script type="text/javascript" src="chartist.js"></script>
+<script type="text/javascript" src="ajaxScript.js">></script>
+)====";
+
+#endif
 const char dataDisplayMainPage[] PROGMEM = R"====(
-        <div class="wrapper">
-            <div class="ct-chart ct-minor-seventh flt-div" id="CHTemperature"></div>
-            <div class="ct-chart ct-minor-seventh flt-div" id="HSPercent"></div>
-            <div class="ct-chart ct-minor-seventh flt-div" id="HSTemp"></div>
-            <div class="ct-chart ct-minor-seventh flt-div" id="FBTemperature"></div>
-        </div>
+	<div class="wrapper">
+        <div class="flt-div" id="dbg1"></div>
+        <div class="flt-div" id="dbg2"></div>
+    </div>
 	<div id='measurements'>
 		Waiting for data...
 	</div>
-	<div id='HeatStrTemps'>
-		Waiting... 
-	</div>
+    <div class="wrapper">
+        <div class="ct-chart ct-minor-seventh flt-div" id="CHTemperature"></div>
+        <div class="ct-chart ct-minor-seventh flt-div" id="HSPercent"></div>
+        <div class="ct-chart ct-minor-seventh flt-div" id="HSTemp"></div>
+        <div class="ct-chart ct-minor-seventh flt-div" id="FBTemperature"></div>
+    </div>
+	
 )====";
+/*<div id = 'HeatStrTemps'>
+Waiting...
+< / div>*/
 extern String LastUARTmsg;
 extern int msgCnt;
 void handleRoot(void)
@@ -275,29 +342,11 @@ void handleRoot(void)
 	message += strServerAddress;
 	message += StringF("</p>");
 
+	message += String(FPSTR(dataDisplayMainPage));
 
 	message += StringF("<p>DEBUG INFO:<br>");
-	message += StringF("<br>millis():") + String(millis());
-	message += StringF(" last_min_start:") + String(ChimneyTemperatures.last_min_start);
-	message += StringF(" dt:") + String(millis()-ChimneyTemperatures.last_min_start);
-	message += StringF("<br>iNsum:") + String(ChimneyTemperatures.iNsum);
-	message += StringF("<br>fTsum:") + String(ChimneyTemperatures.fTsum);
-	message += StringF("   fTsum/iNsum:") + String(ChimneyTemperatures.fTsum/ ChimneyTemperatures.iNsum);
-	message += StringF("<br>fTmax:") + String(ChimneyTemperatures.fTmax);
-	message += StringF("<br>fTmin:") + String(ChimneyTemperatures.fTmin);
-	message += StringF("<br>buf_IN:") + String(ChimneyTemperatures.buf_IN);
-	message += StringF("<br>buf_OUT:") + String(ChimneyTemperatures.buf_OUT);
-	message += StringF("<br>buf_N:") + String(ChimneyTemperatures.buf_N);
-	message += StringF("<br>T[0]:") + String(ChimneyTemperatures.T[0]);
-	message += StringF("<br>T[1]:") + String(ChimneyTemperatures.T[1]);
-	message += StringF("<br>T[buf_IN-1]:") + String(ChimneyTemperatures.T[ChimneyTemperatures.buf_IN - 1]);
-	message += StringF(" T[buf_IN-1]/fact:") + String((double)ChimneyTemperatures.T[ChimneyTemperatures.buf_IN - 1]/ (float)BT_FLOAT_INT_FACTOR);
 	message += StringF("<br>Last UART msg(") + String(msgCnt) + StringF("):") + LastUARTmsg;
-
-	LastUARTmsg = "";
 	message += StringF("</p>");
-
-	message += String(FPSTR(dataDisplayMainPage));
 
 	message += StringF("</br>");
 	message += StringF("<a href='chg_name'>Change Name, ID, Position and Log level</a>");

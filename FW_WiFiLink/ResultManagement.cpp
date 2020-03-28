@@ -64,23 +64,28 @@ boolean BoilerTemperatureHistoryClass::storeT(float Temperature)
 
 	if (now - last_min_start > BT_AVERAGING_PERIOD)
 	{
-		if (buf_N < MEASUREMENT_RESULT_BUFFER_SIZE)
+		T[buf_IN] = round((fTsum/iNsum) * BT_FLOAT_INT_FACTOR);	//max 2047, min -127, max-int16_t = 32768, factor=16 
+		Tmin[buf_IN] = round(fTmin * BT_FLOAT_INT_FACTOR);
+		Tmax[buf_IN] = round(fTmax * BT_FLOAT_INT_FACTOR);
+		buf_IN++;
+		if (buf_IN >= BOILER_DATA_HISTORY_LENGTH) buf_IN = 0;
+		if (buf_N < BOILER_DATA_HISTORY_LENGTH)
 		{
-			T[buf_IN] = round((fTsum/iNsum) * BT_FLOAT_INT_FACTOR);	//max 2047, min -127, max-int16_t = 32768, factor=16 
-			Tmin[buf_IN] = round(fTmin * BT_FLOAT_INT_FACTOR);
-			Tmax[buf_IN] = round(fTmax * BT_FLOAT_INT_FACTOR);
-			buf_IN++;
-			if (buf_IN >= MEASUREMENT_RESULT_BUFFER_SIZE) buf_IN = 0;
 			buf_N++;
-			result = true;
-			//do not restart min,max,avg if it wasn't possible to store result
-			last_min_start = now;
-			fTsum = 0;
-			iNsum = 0;
-			fTmin = 9999;
-			fTmax = -999;
-			return result;
 		}
+		else
+		{
+			buf_OUT++;
+			if (buf_OUT >= BOILER_DATA_HISTORY_LENGTH) buf_OUT = 0;
+		}
+		result = true;
+		//do not restart min,max,avg if it wasn't possible to store result
+		last_min_start = now;
+		fTsum = 0;
+		iNsum = 0;
+		fTmin = 9999;
+		fTmax = -99;
+		return result;
 	}
 	else
 	{
@@ -104,22 +109,25 @@ boolean BoilerTemperatureHistoryClass::getT(float* Temperature, float* minTemper
 		*minTemperature = (float)Tmin[buf_OUT] / (float)BT_FLOAT_INT_FACTOR;
 		*maxTemperature = (float)Tmax[buf_OUT] / (float)BT_FLOAT_INT_FACTOR;
 		buf_OUT++;
-		if (buf_OUT >= MEASUREMENT_RESULT_BUFFER_SIZE) buf_OUT = 0;
+		if (buf_OUT >= BOILER_DATA_HISTORY_LENGTH) buf_OUT = 0;
 		buf_N--;
 		result = true;
 	}
 	return result;
 }
 
-boolean BoilerTemperatureHistoryClass::peekT(float* Temperature, float* minTemperature, float* maxTemperature)
+boolean BoilerTemperatureHistoryClass::peekT(int i, float* Temperature, float* minTemperature, float* maxTemperature)
 {
 	boolean result = false;
+	int out_idx;
 
-	if (buf_N > 0)
+	if (buf_N > i)
 	{
-		*Temperature = (float)T[buf_OUT] / (float)BT_FLOAT_INT_FACTOR;
-		*minTemperature = (float)Tmin[buf_OUT] / (float)BT_FLOAT_INT_FACTOR;
-		*maxTemperature = (float)Tmax[buf_OUT] / (float)BT_FLOAT_INT_FACTOR;
+		out_idx = buf_OUT + i;
+		if (out_idx >= BOILER_DATA_HISTORY_LENGTH) out_idx -= BOILER_DATA_HISTORY_LENGTH;
+		*Temperature = (float)T[out_idx] / (float)BT_FLOAT_INT_FACTOR;
+		*minTemperature = (float)Tmin[out_idx] / (float)BT_FLOAT_INT_FACTOR;
+		*maxTemperature = (float)Tmax[out_idx] / (float)BT_FLOAT_INT_FACTOR;
 		result = true;
 	}
 	return result;
@@ -147,6 +155,13 @@ boolean BoilerTemperatureHistoryClass::removeLastT()
 
 MeasurementResultsClass::MeasurementResultsClass()
 {
+	int i;
+
+	for (i = 0; i < MEASUREMENT_RESULT_BUFFER_SIZE; i++)
+	{
+		results[i].ID = 0;
+		results[i].value = -111;
+	}
 	buf_IN = 0;
 	buf_OUT = 0;
 	buf_N = 0;
@@ -186,6 +201,8 @@ boolean MeasurementResultsClass::getResult(uint32_t* u32_time, uint16_t* type, u
 		*value = results[buf_OUT].value;
 		*Vdd = results[buf_OUT].Vdd;
 		*retries = results[buf_OUT].retries;
+		results[buf_OUT].ID = 0;
+		results[buf_OUT].value = -555;
 		buf_OUT++;
 		if (buf_OUT >= MEASUREMENT_RESULT_BUFFER_SIZE) buf_OUT = 0;
 		buf_N--;
@@ -222,6 +239,8 @@ boolean MeasurementResultsClass::removeLastResult()
 
 	if (buf_N > 0)
 	{
+		results[buf_OUT].ID=0;
+		results[buf_OUT].value=-333;
 		buf_OUT++;
 		if (buf_OUT >= MEASUREMENT_RESULT_BUFFER_SIZE) buf_OUT = 0;
 		buf_N--;
@@ -246,18 +265,6 @@ String MeasurementResultsClass::getServerString()
 		serverMsg += StringF("&temp=") + String(results[buf_OUT].value, 3);
 		serverMsg += StringF("&Vdd=") + String(results[buf_OUT].Vdd, 3);
 		serverMsg += StringF("&retries=") + String(results[buf_OUT].retries);
-
-/*		serverMsg += StringF("?private_key=") + String(private_key);
-		serverMsg += StringF("&timestamp[s]=") + String(tt_UNIXtimestamp);
-		serverMsg += StringF("&type=") + String(results[buf_OUT].type);
-		serverMsg += StringF("&ID=") + String(results[buf_OUT].type);
-		serverMsg += StringF("&value=") + String(results[buf_OUT].value,3);
-		serverMsg += StringF("&Vdd=") + String(results[buf_OUT].Vdd,1);
-		serverMsg += StringF("&retries=") + String(results[buf_OUT].retries);
-		serverMsg += StringF("&RSSi[dBm]=") + String(i32_wifiRSSI);
-		serverMsg += StringF("&Name=") + String(Host_Name);*/
-//						 + StringF(" UTC=");
-//		serverMsg += String(ctime(&tt_UNIXtimestamp));
 
 		serverMsg.replace("%", "%25"); //ta mora bit vedno prvi, ker drugace spremeni procente od ostalih
 		serverMsg.replace("#", "%23");
@@ -288,10 +295,11 @@ String PostData()
 	String ServerMessage;
 	String ServerReply;
 	int maxRetries = MeasurementResults.GetMaxSendRetries();
+	int NumberOfResults = MeasurementResults.getNumberOfStoredResults();
 
-	for (i_ResultIndex = 0; i_ResultIndex < MeasurementResults.getNumberOfStoredResults(); i_ResultIndex++)
+	if (bSysTimeSynced)
 	{
-		if (bSysTimeSynced && (MeasurementResults.getNumberOfStoredResults()>0))
+		for (i_ResultIndex = 0; i_ResultIndex < NumberOfResults; i_ResultIndex++)
 		{
 			result = false;
 			ServerMessage = MeasurementResults.getServerString();
@@ -326,11 +334,10 @@ String PostData()
 			}
 			if (!result) break;	//if any attempt fails for more than MAX times, abort (and wait for next connection)
 		}
-		else
-		{
-			SERIAL_DBG_PORT.printlnF("No timesync. Can't send data until it can be timestamped.");
-			break;
-		}
+	}
+	else
+	{
+		SERIAL_DBG_PORT.printlnF("No timesync. Can't send data until it can be timestamped.");
 	}
 	return ServerReply;
 }

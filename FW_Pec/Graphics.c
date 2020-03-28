@@ -197,7 +197,7 @@ void DisplayTemp(double Tchim, double Tfire, char reset)
     oy=GRAPH_MAX_Y - ((double)(Tchim-MIN_T))/((double)(MAX_T-MIN_T))*GRAPH_WY;
   }
   else if (idx < -1 ) {} //what to do in case of overflow?
-  else if (idx < GRAPH_WX*DECIMATION-1)
+  else if (idx < (GRAPH_WX-1)*DECIMATION)
   {
     if ((idx % DECIMATION) == 0)
     {

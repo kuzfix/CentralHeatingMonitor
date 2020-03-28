@@ -32,9 +32,6 @@
     <ClInclude Include="WiFiConnection.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Measure.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Logging.h">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -176,11 +176,11 @@ void DecodeMessage(String msg)
 			for (i = 0; i < MAX_HEAT_STR_SENSORS; i++)
 			{
 				value = Tlist.toDouble();
-				//SERIAL_DBG_PORT.print(String(i)+": "+Tlist+"   val=");
-				//SERIAL_DBG_PORT.println(value);
+				SERIAL_DBG_PORT.print(String(i)+": "+Tlist+"   val=");
+				SERIAL_DBG_PORT.println(value);
 				HeatStorage.updateT(i, value);
 				if (Tlist.indexOf(StringF(";")) < 0) break;
-				Tlist = Tlist.substring(msg.indexOf(StringF(";")) + 1);
+				Tlist = Tlist.substring(Tlist.indexOf(StringF(";")) + 1);
 			}
 			
 			if (i< MAX_HEAT_STR_SENSORS)
@@ -189,6 +189,7 @@ void DecodeMessage(String msg)
 				msgCnt++;
 				LastUARTmsg = msg;
 				Log(StringF("DecodeHSL(")+String(msgCnt)+StringF("):")+ LastUARTmsg, LL_DEBUG_MSG);
+        SERIAL_DBG_PORT.print("DecodeHSL err i="+String(i)+": "+Tlist+"   val=");
 			}
 		}
 	}
@@ -298,6 +299,7 @@ void ProcessSerialData()
 }
 
 // *********** main ***********
+//uint32_t	debugPause=0;
 void loop()
 {
 	String reply;
@@ -309,6 +311,11 @@ void loop()
 		if (!bSysTimeSynced || ( (millis()-u32_LastSyncTime_ms) > NTP_SYNC_INTERVAL) )	GetTime();
 		if (bSysTimeSynced)
 		{
+			/*if (millis() - debugPause > 20000)
+			{
+				debugPause = millis();
+				reply = PostData();
+			}*/
 			reply = PostData();
 			ProcessServerReply(reply);
 		}

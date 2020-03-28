@@ -56,11 +56,11 @@ public:
 	BoilerTemperatureHistoryClass();
 	boolean storeT(float Temperature);
 	boolean getT(float* Temperature, float* minTemperature, float* maxTemperature);
-	boolean peekT(float* Temperature, float* minTemperature, float* maxTemperature);
+	boolean peekT(int i, float* Temperature, float* minTemperature, float* maxTemperature);
 	int getNumberOfStoredT();
 	boolean removeLastT();
 
-//protected:
+protected:
 	uint32_t last_min_start;
 	int	iNsum;
 	float	fTsum,fTmax,fTmin;
@@ -98,7 +98,7 @@ public:
 	void SetMaxSendRetries(int n);
 	int GetMaxSendRetries();
 
-protected:
+//protected:
 	MeasurementResult_strT results[MEASUREMENT_RESULT_BUFFER_SIZE];
 	int buf_IN;
 	int buf_OUT;

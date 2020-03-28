@@ -125,7 +125,6 @@
     <ClInclude Include="config.h" />
     <ClInclude Include="HelperMacros.h" />
     <ClInclude Include="Logging.h" />
-    <ClInclude Include="Measure.h" />
     <ClInclude Include="NTP_TimeSync.h" />
     <ClInclude Include="OTAupdates.h" />
     <ClInclude Include="WiFiConnection.h" />
