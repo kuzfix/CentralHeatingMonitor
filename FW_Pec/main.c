@@ -286,6 +286,7 @@ int main(void)
   double ChimneyTemperature=0, FireBoxTemperature=0;
   int result;
 
+  //WriteDefaultSensorOrderToEEPROM();
   LED_Init();
   KBD_Init();
   Systime_Init();

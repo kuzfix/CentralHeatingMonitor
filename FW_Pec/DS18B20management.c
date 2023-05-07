@@ -245,7 +245,7 @@ int ReadSensorOrderFromEEPROM()
   return result; //if (result == 1) great
 }
 
-/*
+
 //Data read out from the test controller
 uint8_t DefaultEEPROMcontent[] = {0x11, 
   0x28, 0x23, 0x27, 0x72, 0x0b, 0x00, 0x00, 0x36, 
@@ -294,4 +294,4 @@ void PrintoutSensorOrderFromEEPROM()
       _delay_ms(10);
     }      
   }
-}*/
+}
