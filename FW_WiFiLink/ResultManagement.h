@@ -11,8 +11,8 @@
 #include "Logging.h"
 
 #ifndef SERVER_ADDRESS_STRING
-#define SERVER_ADDRESS_STRING	"http://212.235.187.34/jubodata.php"
-#warning "SERVER_ADDRESS_STRING undefined. Using default (http://212.235.187.34/jubodata.php)"
+#define SERVER_ADDRESS_STRING	"http://192.168.0.11/submit/submitPEC.php"
+#warning "SERVER_ADDRESS_STRING undefined. Using default (http://192.168.0.11/submit/submitPEC.php)"
 #endif
 
 #ifndef MAX_SERVER_SEND_RETRIES

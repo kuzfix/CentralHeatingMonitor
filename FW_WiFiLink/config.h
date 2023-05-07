@@ -62,7 +62,7 @@
 //#define SDA     4							
 //#define SCL     5							
 
-#define SERVER_ADDRESS_STRING	"http://192.168.0.11/submit/submit.php"
+#define SERVER_ADDRESS_STRING	"http://192.168.0.11/submit/submitPEC.php"
 
 #define ARDUINOJSON_DOC_OBJ_SIZE	512		//hard coded
 //increase number of decimal points from 6 to 9
