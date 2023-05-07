@@ -10,6 +10,8 @@
 #include "WiFiConnection.h"
 #include "OTAupdates.h"
 
+//#define SERIAL_DBG_BAUD_RATE  115200  //For Pec
+#define SERIAL_DBG_BAUD_RATE  57600  //For SensorHub (Atmega has 16MHz crystal and 115200 can't be achieved with sufficient accuracy)
 #define SERIAL_DBG_PORT Serial
 extern HardwareSerial SERIAL_DBG_PORT;
 

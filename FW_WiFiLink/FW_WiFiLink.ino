@@ -50,7 +50,7 @@ void setup()
 	pinMode(CS, OUTPUT);		//Chip Select for SPI and LED
 	pinMode(BlueLED, OUTPUT);
 	pinMode(BTN, INPUT);
-	SERIAL_DBG_PORT.begin(115200);
+	SERIAL_DBG_PORT.begin(SERIAL_DBG_BAUD_RATE);
 	SERIAL_DBG_PORT.printlnF("\nInitalising...");
 	SPIFFS.begin();
 	BeginLog();
